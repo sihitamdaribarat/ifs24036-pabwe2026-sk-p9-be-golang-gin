@@ -37,6 +37,11 @@ func NewRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 		ai.NewChatClient(cfg.OpenAIEndpoint, cfg.OpenAIKey, cfg.OpenAIModel, &http.Client{Timeout: 180 * time.Second}),
 	))
 
+	// Halaman root diarahkan ke dokumentasi Swagger UI.
+	r.GET("/", func(c *gin.Context) {
+		c.Redirect(http.StatusFound, "/swagger/index.html")
+	})
+
 	// Dokumentasi Swagger UI & spesifikasi OpenAPI dinamis.
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	r.GET("/api.json", func(c *gin.Context) {

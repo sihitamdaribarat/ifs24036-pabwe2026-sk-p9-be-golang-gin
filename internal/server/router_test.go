@@ -74,6 +74,14 @@ func TestNoRoute(t *testing.T) {
 	assert.Equal(t, "Endpoint not found", body["message"])
 }
 
+func TestRootRedirectsToSwagger(t *testing.T) {
+	r := newTestRouter(t)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	assert.Equal(t, http.StatusFound, w.Code)
+	assert.Equal(t, "/swagger/index.html", w.Header().Get("Location"))
+}
+
 func TestSwaggerAndAPIJSON(t *testing.T) {
 	r := newTestRouter(t)
 
