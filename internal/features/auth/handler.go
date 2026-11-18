@@ -37,7 +37,7 @@ func statusFor(err error) int {
 func respondError(c *gin.Context, err error) {
 	code := statusFor(err)
 	if code == http.StatusInternalServerError {
-		response.Error(c, code, "Terjadi kesalahan pada server")
+		response.InternalError(c, err)
 		return
 	}
 	response.Fail(c, code, err.Error())

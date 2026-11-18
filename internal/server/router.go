@@ -3,6 +3,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 	"time"
 
@@ -50,6 +51,7 @@ func NewRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 
 	api := r.Group("/api")
 	api.Use(middleware.RateLimiter(600, time.Minute))
+	api.GET("/health", healthHandler(db, cfg))
 
 	public := api.Group("/public")
 	public.GET("/categories", postHandler.Categories)
@@ -85,6 +87,24 @@ func NewRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 		response.Fail(c, http.StatusNotFound, "Endpoint not found")
 	})
 	return r
+}
+
+// healthHandler memeriksa koneksi database & keberadaan tabel (GET /api/health).
+// Detail error hanya ditampilkan di luar mode production; selalu dicatat ke log.
+func healthHandler(db *gorm.DB, cfg *config.Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var users int64
+		if err := db.Raw("SELECT COUNT(*) FROM users").Scan(&users).Error; err != nil {
+			log.Printf("[ERROR] health check database: %v", err)
+			message := "Database tidak dapat diakses"
+			if !cfg.IsProduction() {
+				message += ": " + err.Error()
+			}
+			response.Error(c, http.StatusServiceUnavailable, message)
+			return
+		}
+		response.Success(c, http.StatusOK, "API & database berjalan normal", gin.H{"database": "ok", "users": users})
+	}
 }
 
 // Bootstrap menghubungkan database, menjalankan migrasi & seeding, lalu membuat router.

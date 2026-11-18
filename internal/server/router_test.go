@@ -74,6 +74,33 @@ func TestNoRoute(t *testing.T) {
 	assert.Equal(t, "Endpoint not found", body["message"])
 }
 
+func TestHealth(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db, err := database.ConnectTest()
+	require.NoError(t, err)
+	require.NoError(t, database.Seed(db, "admin", "admin"))
+
+	cfg := testConfig()
+	r := NewRouter(db, cfg)
+	code, body := call(r, http.MethodGet, "/api/health", "", nil)
+	assert.Equal(t, http.StatusOK, code)
+	assert.Equal(t, float64(1), body["data"].(map[string]any)["users"])
+
+	// Tabel hilang → 503 dengan detail error (mode non-production).
+	require.NoError(t, db.Migrator().DropTable("posts", "users"))
+	code, body = call(r, http.MethodGet, "/api/health", "", nil)
+	assert.Equal(t, http.StatusServiceUnavailable, code)
+	assert.Contains(t, body["message"], "Database tidak dapat diakses: ")
+
+	// Mode production → detail error disembunyikan.
+	cfg.AppEnv = "production"
+	defer gin.SetMode(gin.TestMode)
+	r = NewRouter(db, cfg)
+	code, body = call(r, http.MethodGet, "/api/health", "", nil)
+	assert.Equal(t, http.StatusServiceUnavailable, code)
+	assert.Equal(t, "Database tidak dapat diakses", body["message"])
+}
+
 func TestRootRedirectsToSwagger(t *testing.T) {
 	r := newTestRouter(t)
 	w := httptest.NewRecorder()

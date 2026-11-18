@@ -1,9 +1,13 @@
 package response
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -52,6 +56,22 @@ func TestFail(t *testing.T) {
 	assert.Equal(t, "fail", body["status"])
 	assert.Equal(t, "Endpoint not found", body["message"])
 	assert.True(t, c.IsAborted())
+}
+
+func TestInternalErrorLogsCause(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	c, w := newContext()
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/auth/login", nil)
+	InternalError(c, errors.New("relation \"users\" does not exist"))
+
+	body := decode(t, w)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, "Terjadi kesalahan pada server", body["message"])
+	assert.Contains(t, buf.String(), "POST /api/auth/login")
+	assert.Contains(t, buf.String(), `relation "users" does not exist`)
 }
 
 func TestError(t *testing.T) {

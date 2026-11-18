@@ -2,6 +2,7 @@ package ai
 
 import (
 	"errors"
+	"log"
 	"net/http"
 
 	"app/internal/features/post"
@@ -49,6 +50,7 @@ func (h *Handler) Generate(c *gin.Context) {
 	case errors.Is(err, ErrNotConfigured):
 		response.Error(c, http.StatusServiceUnavailable, err.Error())
 	default:
+		log.Printf("[ERROR] %s %s: %v", c.Request.Method, c.Request.URL.Path, err)
 		response.Error(c, http.StatusBadGateway, err.Error())
 	}
 }

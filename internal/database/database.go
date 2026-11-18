@@ -42,6 +42,14 @@ func Connect(cfg *config.Config) (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("gagal terhubung ke database: %w", err)
 	}
+
+	// Daur ulang koneksi secara berkala agar koneksi yang sudah diputus PgBouncer
+	// (idle timeout) tidak dipakai ulang.
+	sqlDB, _ := db.DB()
+	sqlDB.SetMaxIdleConns(5)
+	sqlDB.SetMaxOpenConns(20)
+	sqlDB.SetConnMaxIdleTime(2 * time.Minute)
+	sqlDB.SetConnMaxLifetime(15 * time.Minute)
 	return db, nil
 }
 

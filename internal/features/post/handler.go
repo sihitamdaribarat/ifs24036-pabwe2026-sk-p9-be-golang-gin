@@ -28,7 +28,7 @@ func respondError(c *gin.Context, err error) {
 	case errors.Is(err, ErrInvalidCategory):
 		response.Fail(c, http.StatusBadRequest, err.Error())
 	default:
-		response.Error(c, http.StatusInternalServerError, "Terjadi kesalahan pada server")
+		response.InternalError(c, err)
 	}
 }
 
