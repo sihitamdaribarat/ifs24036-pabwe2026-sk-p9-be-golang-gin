@@ -20,6 +20,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func init() {
+	// Percepat retry koneksi database saat pengujian.
+	dbConnectDelay = time.Millisecond
+}
+
 func testConfig() *config.Config {
 	return &config.Config{
 		AppEnv:               "testing",

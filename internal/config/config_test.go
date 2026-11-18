@@ -44,6 +44,19 @@ func TestLoadFromEnvFile(t *testing.T) {
 	assert.True(t, cfg.IsProduction())
 }
 
+func TestEnvFileOverridesStaleEnvironment(t *testing.T) {
+	envFile := filepath.Join(t.TempDir(), ".env")
+	assert.NoError(t, os.WriteFile(envFile, []byte("APP_PORT=7463\nDB_PASSWORD=password_baru\n"), 0o600))
+
+	// Nilai lama dari deploy sebelumnya masih ada di environment proses.
+	t.Setenv("APP_PORT", "5574")
+	t.Setenv("DB_PASSWORD", "password_lama")
+
+	cfg := Load(envFile)
+	assert.Equal(t, "7463", cfg.AppPort)
+	assert.Equal(t, "password_baru", cfg.DBPassword)
+}
+
 func TestGet(t *testing.T) {
 	t.Setenv("CONFIG_TEST_KEY", "value")
 	assert.Equal(t, "value", Get("CONFIG_TEST_KEY", "fallback"))

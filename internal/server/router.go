@@ -107,9 +107,16 @@ func healthHandler(db *gorm.DB, cfg *config.Config) gin.HandlerFunc {
 	}
 }
 
+// Percobaan koneksi database saat startup (total ±30 detik) sebelum aplikasi menyerah.
+var (
+	dbConnectAttempts = 10
+	dbConnectDelay    = 3 * time.Second
+)
+
 // Bootstrap menghubungkan database, menjalankan migrasi & seeding, lalu membuat router.
 func Bootstrap(cfg *config.Config) (*gin.Engine, error) {
-	db, err := database.Connect(cfg)
+	log.Printf("Menghubungkan database %s di %s:%s (port aplikasi %s)", cfg.DBDatabase, cfg.DBHost, cfg.DBPort, cfg.AppPort)
+	db, err := database.ConnectWithRetry(cfg, dbConnectAttempts, dbConnectDelay)
 	if err != nil {
 		return nil, err
 	}

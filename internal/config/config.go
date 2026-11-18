@@ -36,8 +36,10 @@ type Config struct {
 // Load membaca file .env (jika ada) lalu menyusun Config dari environment variable.
 // Parameter files bersifat opsional; tanpa argumen akan membaca ".env" di direktori kerja.
 func Load(files ...string) *Config {
-	// File .env bersifat opsional (misal saat CI/CD atau produksi memakai env asli).
-	_ = godotenv.Load(files...)
+	// File .env bersifat opsional (misal saat CI/CD tanpa .env). Jika ada, nilainya
+	// menimpa environment variable lama: platform deployment membuat ulang .env
+	// (PORT & DB_PASSWORD baru) setiap deploy, sehingga .env adalah sumber kebenaran.
+	_ = godotenv.Overload(files...)
 
 	return &Config{
 		AppEnv:  Get("APP_ENV", "development"),

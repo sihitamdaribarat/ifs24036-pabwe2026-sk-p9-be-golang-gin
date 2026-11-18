@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"app/internal/config"
 	"app/internal/features/auth"
@@ -22,6 +23,19 @@ func TestConnectSQLite(t *testing.T) {
 	assert.NoError(t, Migrate(db))
 	assert.True(t, db.Migrator().HasTable("posts"))
 	assert.True(t, db.Migrator().HasTable("users"))
+}
+
+func TestConnectWithRetry(t *testing.T) {
+	cfg := &config.Config{DBConnection: "sqlite", DBDatabase: filepath.Join(t.TempDir(), "retry.db")}
+	db, err := ConnectWithRetry(cfg, 3, time.Millisecond)
+	require.NoError(t, err)
+	sqlDB, _ := db.DB()
+	t.Cleanup(func() { sqlDB.Close() })
+
+	start := time.Now()
+	_, err = ConnectWithRetry(&config.Config{DBConnection: "mysql"}, 3, 5*time.Millisecond)
+	assert.ErrorContains(t, err, "tidak didukung")
+	assert.GreaterOrEqual(t, time.Since(start), 10*time.Millisecond)
 }
 
 func TestConnectUnsupported(t *testing.T) {

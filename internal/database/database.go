@@ -53,6 +53,24 @@ func Connect(cfg *config.Config) (*gorm.DB, error) {
 	return db, nil
 }
 
+// ConnectWithRetry mencoba Connect hingga attempts kali dengan jeda delay. Berguna saat
+// startup di server deployment: PgBouncer bisa butuh beberapa detik untuk mengenali
+// kredensial database baru setelah deploy.
+func ConnectWithRetry(cfg *config.Config, attempts int, delay time.Duration) (*gorm.DB, error) {
+	var err error
+	for i := 1; i <= attempts; i++ {
+		var db *gorm.DB
+		if db, err = Connect(cfg); err == nil {
+			return db, nil
+		}
+		log.Printf("[WARN] database belum siap (percobaan %d/%d): %v", i, attempts, err)
+		if i < attempts {
+			time.Sleep(delay)
+		}
+	}
+	return nil, err
+}
+
 // ConnectTest membuka database SQLite in-memory yang terisolasi untuk pengujian TDD.
 func ConnectTest() (*gorm.DB, error) {
 	return openTest(":memory:")
