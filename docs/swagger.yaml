@@ -1,0 +1,811 @@
+basePath: /
+definitions:
+  ai.GenerateRequest:
+    properties:
+      category:
+        example: Teknologi
+        type: string
+      include_web_search:
+        example: true
+        type: boolean
+      tone:
+        example: informatif dan santai
+        maxLength: 100
+        type: string
+      topic:
+        example: Tren kecerdasan buatan di dunia pendidikan 2026
+        maxLength: 500
+        type: string
+    required:
+    - topic
+    type: object
+  ai.GeneratedArticle:
+    properties:
+      category:
+        type: string
+      content:
+        type: string
+      excerpt:
+        type: string
+      search_warning:
+        type: string
+      sources:
+        items:
+          $ref: '#/definitions/ai.SearchResult'
+        type: array
+      title:
+        type: string
+      web_search_used:
+        type: boolean
+    type: object
+  ai.SearchResult:
+    properties:
+      snippet:
+        type: string
+      title:
+        type: string
+      url:
+        type: string
+    type: object
+  auth.LoginRequest:
+    properties:
+      password:
+        example: admin
+        type: string
+      username:
+        example: admin
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  auth.LoginResponse:
+    properties:
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/auth.User'
+    type: object
+  auth.RegisterRequest:
+    properties:
+      email:
+        example: budi@example.com
+        maxLength: 150
+        type: string
+      name:
+        example: Budi Santoso
+        maxLength: 100
+        type: string
+      password:
+        example: rahasia123
+        maxLength: 72
+        minLength: 6
+        type: string
+      username:
+        example: budi
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - email
+    - name
+    - password
+    - username
+    type: object
+  auth.UpdateProfileRequest:
+    properties:
+      bio:
+        example: Penulis teknologi
+        maxLength: 1000
+        type: string
+      email:
+        example: budi@example.com
+        maxLength: 150
+        type: string
+      name:
+        example: Budi Santoso
+        maxLength: 100
+        type: string
+      password:
+        example: ""
+        maxLength: 72
+        minLength: 6
+        type: string
+    required:
+    - email
+    - name
+    type: object
+  auth.User:
+    properties:
+      bio:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      role:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  post.AuthorInfo:
+    properties:
+      bio:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      username:
+        type: string
+    type: object
+  post.PostRequest:
+    properties:
+      category:
+        example: Teknologi
+        maxLength: 100
+        type: string
+      content:
+        example: |-
+          # Judul
+
+          Isi artikel dalam Markdown.
+        type: string
+      cover_image_path:
+        example: https://picsum.photos/1200/600
+        type: string
+      excerpt:
+        example: Ringkasan singkat artikel.
+        type: string
+      is_published:
+        example: false
+        type: boolean
+      title:
+        example: Belajar Golang Gin
+        maxLength: 255
+        type: string
+    required:
+    - content
+    - title
+    type: object
+  post.PostResponse:
+    properties:
+      author:
+        $ref: '#/definitions/post.AuthorInfo'
+      category:
+        type: string
+      content:
+        type: string
+      cover_image_path:
+        type: string
+      created_at:
+        type: string
+      excerpt:
+        type: string
+      id:
+        type: integer
+      is_published:
+        type: boolean
+      published_at:
+        type: string
+      reading_time:
+        type: integer
+      slug:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  post.Stats:
+    properties:
+      draft:
+        type: integer
+      published:
+        type: integer
+      total:
+        type: integer
+    type: object
+  post.UserSummary:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      published_posts:
+        type: integer
+      role:
+        type: string
+      total_posts:
+        type: integer
+      username:
+        type: string
+    type: object
+  response.Body:
+    properties:
+      data: {}
+      message:
+        example: Berhasil
+        type: string
+      status:
+        example: success
+        type: string
+    type: object
+info:
+  contact: {}
+  description: REST API platform publikasi artikel multi-tier dengan AI Blog Generator
+    yang terintegrasi Search Engine.
+  title: Delcom Blog API
+  version: "1.0"
+paths:
+  /api/admin/posts:
+    get:
+      parameters:
+      - description: Kata kunci pencarian
+        in: query
+        name: q
+        type: string
+      - description: Filter kategori
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/post.PostResponse'
+                  type: array
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Monitoring seluruh artikel dari semua penulis
+      tags:
+      - Admin
+  /api/admin/users:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/post.UserSummary'
+                  type: array
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Daftar seluruh pengguna beserta total artikel
+      tags:
+      - Admin
+  /api/admin/users/{id}/posts:
+    get:
+      parameters:
+      - description: ID pengguna
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/post.PostResponse'
+                  type: array
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Daftar artikel milik pengguna tertentu
+      tags:
+      - Admin
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Kredensial
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.LoginResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Login dan dapatkan token JWT
+      tags:
+      - Auth
+  /api/auth/logout:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Logout sesi pengguna
+      tags:
+      - Auth
+  /api/auth/profile:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.User'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Profil penulis yang sedang login
+      tags:
+      - Auth
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Data profil
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.User'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Perbarui profil penulis yang sedang login
+      tags:
+      - Auth
+  /api/auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Data registrasi
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.User'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Registrasi penulis baru
+      tags:
+      - Auth
+  /api/posts:
+    get:
+      parameters:
+      - description: Kata kunci pencarian
+        in: query
+        name: q
+        type: string
+      - description: Filter kategori
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/post.PostResponse'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Daftar artikel milik penulis yang sedang login
+      tags:
+      - Posts
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Data artikel
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/post.PostRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/post.PostResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Buat artikel baru
+      tags:
+      - Posts
+  /api/posts/{id}:
+    delete:
+      parameters:
+      - description: ID artikel
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Hapus artikel milik penulis
+      tags:
+      - Posts
+    get:
+      parameters:
+      - description: ID artikel
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/post.PostResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Detail artikel milik penulis
+      tags:
+      - Posts
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID artikel
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Data artikel
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/post.PostRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/post.PostResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Perbarui artikel milik penulis
+      tags:
+      - Posts
+  /api/posts/{id}/toggle-publish:
+    patch:
+      parameters:
+      - description: ID artikel
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/post.PostResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Ubah status terbit/draf artikel
+      tags:
+      - Posts
+  /api/posts/ai-generate:
+    post:
+      consumes:
+      - application/json
+      description: Menelusuri topik ke Search Engine (opsional), lalu mengirim prompt
+        + konteks ke OpenAI Chat Completions untuk menghasilkan judul, kategori, excerpt,
+        konten Markdown dan daftar sumber rujukan.
+      parameters:
+      - description: Topik artikel
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/ai.GenerateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/ai.GeneratedArticle'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/response.Body'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: Generate draf artikel dengan AI + Search Engine
+      tags:
+      - Posts
+  /api/posts/stats:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/post.Stats'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Ringkasan 3 kartu statistik penulis
+      tags:
+      - Posts
+  /api/public/categories:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  items:
+                    type: string
+                  type: array
+              type: object
+      summary: Daftar kategori artikel
+      tags:
+      - Public
+  /api/public/posts:
+    get:
+      parameters:
+      - description: Kata kunci pencarian
+        in: query
+        name: q
+        type: string
+      - description: Filter kategori
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/post.PostResponse'
+                  type: array
+              type: object
+      summary: Daftar artikel terbit
+      tags:
+      - Public
+  /api/public/posts/{slug}:
+    get:
+      parameters:
+      - description: Slug artikel
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Body'
+            - properties:
+                data:
+                  $ref: '#/definitions/post.PostResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: Detail artikel terbit berdasarkan slug
+      tags:
+      - Public
+securityDefinitions:
+  BearerAuth:
+    description: 'Masukkan token dengan format: Bearer {token}'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

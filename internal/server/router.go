@@ -1,0 +1,98 @@
+// Package server mengonfigurasi router Gin, seluruh routing API publik / penulis / admin,
+// Swagger UI dan handler 404.
+package server
+
+import (
+	"net/http"
+	"time"
+
+	"app/docs"
+	"app/internal/config"
+	"app/internal/database"
+	"app/internal/features/ai"
+	"app/internal/features/auth"
+	"app/internal/features/post"
+	"app/internal/middleware"
+	"app/internal/response"
+
+	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+	"gorm.io/gorm"
+)
+
+// NewRouter menyusun seluruh dependensi fitur dan mendaftarkan routing API.
+func NewRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
+	if cfg.IsProduction() {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	r := gin.New()
+	r.Use(gin.Logger(), gin.Recovery(), middleware.CORS())
+
+	authHandler := auth.NewHandler(auth.NewService(auth.NewRepository(db), cfg.AppKey))
+	postHandler := post.NewHandler(post.NewService(post.NewRepository(db)))
+	aiHandler := ai.NewHandler(ai.NewService(
+		ai.NewSearchClient(cfg.SearchEngineEndpoint, &http.Client{Timeout: 20 * time.Second}),
+		ai.NewChatClient(cfg.OpenAIEndpoint, cfg.OpenAIKey, cfg.OpenAIModel, &http.Client{Timeout: 180 * time.Second}),
+	))
+
+	// Dokumentasi Swagger UI & spesifikasi OpenAPI dinamis.
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	r.GET("/api.json", func(c *gin.Context) {
+		c.Data(http.StatusOK, "application/json; charset=utf-8", []byte(docs.SwaggerInfo.ReadDoc()))
+	})
+
+	api := r.Group("/api")
+	api.Use(middleware.RateLimiter(600, time.Minute))
+
+	public := api.Group("/public")
+	public.GET("/categories", postHandler.Categories)
+	public.GET("/posts", postHandler.ListPublic)
+	public.GET("/posts/:slug", postHandler.GetPublic)
+
+	authGroup := api.Group("/auth")
+	authLimiter := middleware.RateLimiter(30, time.Minute)
+	authGroup.POST("/register", authLimiter, authHandler.Register)
+	authGroup.POST("/login", authLimiter, authHandler.Login)
+
+	authenticated := api.Group("", middleware.Auth(cfg.AppKey))
+	authenticated.POST("/auth/logout", authHandler.Logout)
+	authenticated.GET("/auth/profile", authHandler.GetProfile)
+	authenticated.PUT("/auth/profile", authHandler.UpdateProfile)
+
+	posts := authenticated.Group("/posts", middleware.RequireRole(auth.RoleMember, auth.RoleAdmin))
+	posts.GET("", postHandler.ListMine)
+	posts.POST("", postHandler.Create)
+	posts.GET("/stats", postHandler.Stats)
+	posts.POST("/ai-generate", middleware.RateLimiter(20, time.Minute), aiHandler.Generate)
+	posts.GET("/:id", postHandler.GetMine)
+	posts.PUT("/:id", postHandler.Update)
+	posts.DELETE("/:id", postHandler.Delete)
+	posts.PATCH("/:id/toggle-publish", postHandler.TogglePublish)
+
+	admin := authenticated.Group("/admin", middleware.RequireRole(auth.RoleAdmin))
+	admin.GET("/users", postHandler.AdminUsers)
+	admin.GET("/posts", postHandler.AdminPosts)
+	admin.GET("/users/:id/posts", postHandler.AdminUserPosts)
+
+	r.NoRoute(func(c *gin.Context) {
+		response.Fail(c, http.StatusNotFound, "Endpoint not found")
+	})
+	return r
+}
+
+// Bootstrap menghubungkan database, menjalankan migrasi & seeding, lalu membuat router.
+func Bootstrap(cfg *config.Config) (*gin.Engine, error) {
+	db, err := database.Connect(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if err := database.Migrate(db); err != nil {
+		return nil, err
+	}
+	if err := database.Seed(db, cfg.AdminUsername, cfg.AdminPassword); err != nil {
+		return nil, err
+	}
+	return NewRouter(db, cfg), nil
+}

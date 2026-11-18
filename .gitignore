@@ -1,0 +1,35 @@
+# Biner hasil build (diawali "/" agar hanya berlaku di root,
+# sehingga folder seperti internal/server/ TIDAK ikut ter-ignore oleh Jenkins)
+/server
+/server.exe
+/main
+/main.exe
+/app
+/app.exe
+*.exe
+
+# Environment rahasia
+.env
+.env.*
+!.env.example
+
+# Hasil testing & coverage
+*.out
+*.test
+*.prof
+coverage*
+cov*.html
+
+# Hasil pipeline Jenkins
+.trivy-cache/
+trivy-results.sarif
+latest-app.zip
+
+# Database lokal SQLite
+*.db
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
