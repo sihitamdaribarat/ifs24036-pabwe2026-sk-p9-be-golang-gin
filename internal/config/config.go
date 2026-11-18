@@ -5,6 +5,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -69,11 +70,14 @@ func Get(key, fallback string) string {
 	return fallback
 }
 
-// DSN menyusun connection string PostgreSQL.
+// DSN menyusun connection string PostgreSQL. Tidak memakai parameter TimeZone karena
+// PgBouncer menolak startup parameter yang tidak dikenal; password diberi tanda kutip
+// agar karakter khusus tetap aman.
 func (c *Config) DSN() string {
+	password := strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(c.DBPassword)
 	return fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Asia/Jakarta",
-		c.DBHost, c.DBUsername, c.DBPassword, c.DBDatabase, c.DBPort, c.DBSSLMode,
+		"host=%s user=%s password='%s' dbname=%s port=%s sslmode=%s",
+		c.DBHost, c.DBUsername, password, c.DBDatabase, c.DBPort, c.DBSSLMode,
 	)
 }
 

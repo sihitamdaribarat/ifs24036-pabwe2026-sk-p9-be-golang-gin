@@ -52,11 +52,12 @@ func TestGet(t *testing.T) {
 
 func TestDSN(t *testing.T) {
 	cfg := &Config{
-		DBHost: "localhost", DBUsername: "user", DBPassword: "pass",
+		DBHost: "localhost", DBUsername: "user", DBPassword: `p'a\ss-1`,
 		DBDatabase: "db", DBPort: "5432", DBSSLMode: "disable",
 	}
 	assert.Equal(t,
-		"host=localhost user=user password=pass dbname=db port=5432 sslmode=disable TimeZone=Asia/Jakarta",
+		`host=localhost user=user password='p\'a\\ss-1' dbname=db port=5432 sslmode=disable`,
 		cfg.DSN(),
 	)
+	assert.NotContains(t, cfg.DSN(), "TimeZone")
 }

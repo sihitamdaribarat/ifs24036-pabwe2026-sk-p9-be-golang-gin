@@ -26,7 +26,9 @@ func Connect(cfg *config.Config) (*gorm.DB, error) {
 	case "sqlite":
 		dialector = sqlite.Open(cfg.DBDatabase)
 	case "pgsql", "postgres", "postgresql":
-		dialector = postgres.Open(cfg.DSN())
+		// PreferSimpleProtocol: tanpa prepared statement agar kompatibel dengan PgBouncer
+		// (transaction pooling) di server deployment.
+		dialector = postgres.New(postgres.Config{DSN: cfg.DSN(), PreferSimpleProtocol: true})
 	default:
 		return nil, fmt.Errorf("DB_CONNECTION %q tidak didukung", cfg.DBConnection)
 	}
