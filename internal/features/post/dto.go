@@ -80,6 +80,7 @@ type PostResponse struct {
 	IsPublished    bool        `json:"is_published"`
 	PublishedAt    *time.Time  `json:"published_at"`
 	ReadingTime    int         `json:"reading_time"`
+	AuthorName     string      `json:"author_name"`
 	Author         *AuthorInfo `json:"author,omitempty"`
 	CreatedAt      time.Time   `json:"created_at"`
 	UpdatedAt      time.Time   `json:"updated_at"`
@@ -123,7 +124,8 @@ func ToResponse(p Post) PostResponse {
 		UpdatedAt:      p.UpdatedAt,
 	}
 	if p.User != nil {
-		res.Author = &AuthorInfo{ID: p.User.ID, Name: p.User.Name, Username: p.User.Username, Bio: p.User.Bio}
+		res.AuthorName = p.User.Name
+		res.Author =&AuthorInfo{ID: p.User.ID, Name: p.User.Name, Username: p.User.Username, Bio: p.User.Bio}
 	}
 	return res
 }

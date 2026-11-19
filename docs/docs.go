@@ -1101,6 +1101,11 @@ const docTemplate = `{
                     "minLength": 6,
                     "example": "rahasia123"
                 },
+                "role": {
+                    "description": "Role opsional; \"admin\" hanya berlaku jika ALLOW_ADMIN_REGISTRATION=true.",
+                    "type": "string",
+                    "example": "member"
+                },
                 "username": {
                     "type": "string",
                     "maxLength": 50,
@@ -1221,6 +1226,9 @@ const docTemplate = `{
             "properties": {
                 "author": {
                     "$ref": "#/definitions/post.AuthorInfo"
+                },
+                "author_name": {
+                    "type": "string"
                 },
                 "category": {
                     "type": "string"

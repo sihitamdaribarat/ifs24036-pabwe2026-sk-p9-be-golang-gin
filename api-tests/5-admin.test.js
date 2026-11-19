@@ -1,7 +1,7 @@
 // 5-admin: monitoring seluruh pengguna & artikel (khusus admin).
 import assert from 'node:assert/strict'
 import { before, describe, test } from 'node:test'
-import { api, createPost, expectFail, expectOk, loginAdmin, registerAndLogin } from './helpers.js'
+import { api, createPost, expectFail, expectOk, loginAdmin, registerAndLogin, uid } from './helpers.js'
 
 describe('5-admin', () => {
   let admin
@@ -17,6 +17,17 @@ describe('5-admin', () => {
 
   test('login admin (ADMIN_USERNAME / ADMIN_PASSWORD) → role admin', () => {
     assert.equal(admin.user.role, 'admin')
+  })
+
+  // Penguji delcom.grading membuat akun admin lewat register "role": "admin".
+  // Hanya berlaku jika server dijalankan dengan ALLOW_ADMIN_REGISTRATION=true.
+  test('register role admin → token admin (ALLOW_ADMIN_REGISTRATION=true)', async () => {
+    const username = `admin_${uid()}`
+    const data = expectOk(await api('POST', '/api/auth/register', {
+      body: { name: 'Admin Uji', username, email: `${username}@example.com`, password: 'rahasia123', role: 'admin' },
+    }), 201)
+    assert.equal(data.user.role, 'admin', 'role admin diabaikan: set ALLOW_ADMIN_REGISTRATION=true di .env backend')
+    expectOk(await api('GET', '/api/admin/users', { token: data.token }))
   })
 
   test('tanpa token 401, penulis biasa 403', async () => {

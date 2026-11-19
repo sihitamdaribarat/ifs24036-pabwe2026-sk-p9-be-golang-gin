@@ -31,6 +31,8 @@ var usernamePattern = regexp.MustCompile(`^[a-z0-9_.-]+$`)
 type Service struct {
 	repo   Repository
 	secret string
+	// AllowAdminRegistration mengizinkan registrasi dengan role admin (ALLOW_ADMIN_REGISTRATION).
+	AllowAdminRegistration bool
 }
 
 // NewService membuat Service autentikasi.
@@ -79,12 +81,18 @@ func (s *Service) Register(req RegisterRequest) (*LoginResponse, error) {
 		return nil, err
 	}
 
+	// Role admin hanya diberikan jika diizinkan konfigurasi; selain itu selalu member.
+	role := RoleMember
+	if strings.EqualFold(strings.TrimSpace(req.Role), RoleAdmin) && s.AllowAdminRegistration {
+		role = RoleAdmin
+	}
+
 	user := &User{
 		Name:     name,
 		Username: username,
 		Email:    email,
 		Password: hash,
-		Role:     RoleMember,
+		Role:     role,
 	}
 	if err := s.repo.Create(user); err != nil {
 		return nil, err

@@ -24,6 +24,11 @@ describe('2-public', () => {
     const serialized = JSON.stringify(data).toLowerCase()
     assert.ok(!serialized.includes('password'), 'data publik memuat password')
     assert.ok(!serialized.includes('user_id'), 'data publik memuat user_id (data internal)')
+    for (const p of data) {
+      assert.equal(typeof p.author_name, 'string', 'author_name tidak ada')
+      assert.ok(p.reading_time >= 1)
+      assert.ok(p.published_at)
+    }
     assert.ok(data.every((p) => p.is_published === true), 'ada draf yang tampil di publik')
     assert.ok(data.some((p) => p.id === published.id))
     assert.ok(!data.some((p) => p.id === draft.id))

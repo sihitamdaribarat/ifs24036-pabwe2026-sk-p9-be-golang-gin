@@ -118,6 +118,25 @@ func TestRegister(t *testing.T) {
 	assert.Equal(t, "test_user-1.a", user["name"])
 }
 
+func TestRegisterAdminRole(t *testing.T) {
+	db := setupDB(t)
+	svc := NewService(NewRepository(db), testSecret)
+	req := func(username string) RegisterRequest {
+		return RegisterRequest{Username: username, Email: username + "@example.com", Password: "secret123", Role: " Admin "}
+	}
+
+	// Bawaan: role admin diabaikan → member.
+	res, err := svc.Register(req("biasa"))
+	require.NoError(t, err)
+	assert.Equal(t, RoleMember, res.User.Role)
+
+	// ALLOW_ADMIN_REGISTRATION=true → admin.
+	svc.AllowAdminRegistration = true
+	res, err = svc.Register(req("bos"))
+	require.NoError(t, err)
+	assert.Equal(t, RoleAdmin, res.User.Role)
+}
+
 func TestLogin(t *testing.T) {
 	r := setupRouter(setupDB(t))
 	register(r, "budi", "budi@example.com")

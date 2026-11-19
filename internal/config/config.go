@@ -18,6 +18,9 @@ type Config struct {
 
 	AdminUsername string
 	AdminPassword string
+	// AllowAdminRegistration mengizinkan registrasi dengan "role": "admin" (misal untuk
+	// penguji otomatis). Bawaan false karena membuka akses admin ke siapa pun.
+	AllowAdminRegistration bool
 
 	DBConnection string
 	DBHost       string
@@ -48,6 +51,8 @@ func Load(files ...string) *Config {
 
 		AdminUsername: Get("ADMIN_USERNAME", "admin"),
 		AdminPassword: Get("ADMIN_PASSWORD", "admin"),
+
+		AllowAdminRegistration: strings.EqualFold(Get("ALLOW_ADMIN_REGISTRATION", "false"), "true"),
 
 		DBConnection: Get("DB_CONNECTION", "pgsql"),
 		DBHost:       Get("DB_HOST", "127.0.0.1"),

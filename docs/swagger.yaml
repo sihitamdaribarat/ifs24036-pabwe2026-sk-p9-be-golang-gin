@@ -86,6 +86,10 @@ definitions:
         maxLength: 72
         minLength: 6
         type: string
+      role:
+        description: Role opsional; "admin" hanya berlaku jika ALLOW_ADMIN_REGISTRATION=true.
+        example: member
+        type: string
       username:
         example: budi
         maxLength: 50
@@ -179,6 +183,8 @@ definitions:
     properties:
       author:
         $ref: '#/definitions/post.AuthorInfo'
+      author_name:
+        type: string
       category:
         type: string
       content:

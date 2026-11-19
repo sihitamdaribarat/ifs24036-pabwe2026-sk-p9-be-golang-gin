@@ -32,6 +32,8 @@ type RegisterRequest struct {
 	Username string `json:"username" binding:"required,min=3,max=50" example:"budi"`
 	Email    string `json:"email" binding:"required,email,max=150" example:"budi@example.com"`
 	Password string `json:"password" binding:"required,min=6,max=72" example:"rahasia123"`
+	// Role opsional; "admin" hanya berlaku jika ALLOW_ADMIN_REGISTRATION=true.
+	Role string `json:"role" example:"member"`
 }
 
 // LoginRequest adalah payload login. Identitas boleh dikirim lewat field username atau email.

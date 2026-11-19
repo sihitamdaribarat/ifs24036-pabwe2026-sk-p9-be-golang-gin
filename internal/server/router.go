@@ -31,7 +31,9 @@ func NewRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery(), middleware.CORS())
 
-	authHandler := auth.NewHandler(auth.NewService(auth.NewRepository(db), cfg.AppKey))
+	authService := auth.NewService(auth.NewRepository(db), cfg.AppKey)
+	authService.AllowAdminRegistration = cfg.AllowAdminRegistration
+	authHandler := auth.NewHandler(authService)
 	postHandler := post.NewHandler(post.NewService(post.NewRepository(db)))
 	aiHandler := ai.NewHandler(ai.NewService(
 		ai.NewSearchClient(cfg.SearchEngineEndpoint, &http.Client{Timeout: 20 * time.Second}),

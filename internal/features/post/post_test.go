@@ -279,6 +279,7 @@ func TestPublicEndpoints(t *testing.T) {
 	assert.Equal(t, "AI di Sekolah", res.data()["title"])
 	assert.Equal(t, "budi", res.data()["author"].(map[string]any)["username"])
 	assert.NotContains(t, res.data(), "user_id")
+	assert.Equal(t, "Budi", res.data()["author_name"])
 
 	assert.Equal(t, http.StatusNotFound, e.call(http.MethodGet, "/api/public/posts/draf-rahasia", nil, nil).Code)
 	assert.Equal(t, http.StatusNotFound, e.call(http.MethodGet, "/api/public/posts/tidak-ada", nil, nil).Code)

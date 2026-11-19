@@ -9,12 +9,13 @@ import (
 )
 
 func TestLoadDefaults(t *testing.T) {
-	keys := []string{"APP_ENV", "APP_PORT", "OPENAI_KEY", "DB_CONNECTION"}
+	keys := []string{"APP_ENV", "APP_PORT", "OPENAI_KEY", "DB_CONNECTION", "ALLOW_ADMIN_REGISTRATION"}
 	for _, k := range keys {
 		t.Setenv(k, "")
 	}
 
 	cfg := Load(filepath.Join(t.TempDir(), "missing.env"))
+	assert.False(t, cfg.AllowAdminRegistration)
 
 	assert.Equal(t, "development", cfg.AppEnv)
 	assert.Equal(t, "8081", cfg.AppPort)
@@ -27,10 +28,10 @@ func TestLoadDefaults(t *testing.T) {
 func TestLoadFromEnvFile(t *testing.T) {
 	dir := t.TempDir()
 	envFile := filepath.Join(dir, ".env")
-	content := "APP_ENV=production\nAPP_PORT=9999\nDB_DATABASE=testdb\nSEARCH_ENGINE_ENDPOINT=http://search.local\n"
+	content := "APP_ENV=production\nAPP_PORT=9999\nDB_DATABASE=testdb\nSEARCH_ENGINE_ENDPOINT=http://search.local\nALLOW_ADMIN_REGISTRATION=TRUE\n"
 	assert.NoError(t, os.WriteFile(envFile, []byte(content), 0o600))
 
-	for _, k := range []string{"APP_ENV", "APP_PORT", "DB_DATABASE", "SEARCH_ENGINE_ENDPOINT"} {
+	for _, k := range []string{"APP_ENV", "APP_PORT", "DB_DATABASE", "SEARCH_ENGINE_ENDPOINT", "ALLOW_ADMIN_REGISTRATION"} {
 		t.Setenv(k, "")
 		os.Unsetenv(k)
 	}
@@ -42,6 +43,7 @@ func TestLoadFromEnvFile(t *testing.T) {
 	assert.Equal(t, "testdb", cfg.DBDatabase)
 	assert.Equal(t, "http://search.local", cfg.SearchEngineEndpoint)
 	assert.True(t, cfg.IsProduction())
+	assert.True(t, cfg.AllowAdminRegistration)
 }
 
 func TestEnvFileOverridesStaleEnvironment(t *testing.T) {
