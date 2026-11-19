@@ -295,9 +295,9 @@ func TestAdminEndpoints(t *testing.T) {
 	require.Len(t, users, 3)
 	budi := users[1].(map[string]any)
 	assert.Equal(t, "budi", budi["username"])
-	assert.Equal(t, float64(2), budi["total_posts"])
-	assert.Equal(t, float64(1), budi["published_posts"])
-	assert.Equal(t, float64(0), users[0].(map[string]any)["total_posts"])
+	assert.Equal(t, float64(2), budi["total_articles"])
+	assert.Equal(t, float64(1), budi["total_published"])
+	assert.Equal(t, float64(0), users[0].(map[string]any)["total_articles"])
 
 	assert.Len(t, e.call(http.MethodGet, "/api/admin/posts", &e.admin, nil).list(), 3)
 	assert.Len(t, e.call(http.MethodGet, "/api/admin/posts?q=tiga", &e.admin, nil).list(), 1)

@@ -102,8 +102,8 @@ func (r *repository) ListUserSummaries() ([]UserSummary, error) {
 	var summaries []UserSummary
 	err := r.db.Model(&auth.User{}).
 		Select(`users.id, users.name, users.username, users.email, users.role, users.created_at,
-			COUNT(posts.id) AS total_posts,
-			COALESCE(SUM(CASE WHEN posts.is_published THEN 1 ELSE 0 END), 0) AS published_posts`).
+			COUNT(posts.id) AS total_articles,
+			COALESCE(SUM(CASE WHEN posts.is_published THEN 1 ELSE 0 END), 0) AS total_published`).
 		Joins("LEFT JOIN posts ON posts.user_id = users.id").
 		Group("users.id, users.name, users.username, users.email, users.role, users.created_at").
 		Order("users.id ASC").

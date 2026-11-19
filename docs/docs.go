@@ -1331,13 +1331,13 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "published_posts": {
-                    "type": "integer"
-                },
                 "role": {
                     "type": "string"
                 },
-                "total_posts": {
+                "total_articles": {
+                    "type": "integer"
+                },
+                "total_published": {
                     "type": "integer"
                 },
                 "username": {

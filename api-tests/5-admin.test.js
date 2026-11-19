@@ -41,8 +41,8 @@ describe('5-admin', () => {
     const users = expectOk(await api('GET', '/api/admin/users', { token: admin.token }))
     const row = users.find((u) => u.id === member.user.id)
     assert.ok(row, 'penulis baru tidak ada di daftar')
-    assert.equal(row.total_posts, 2)
-    assert.equal(row.published_posts, 1)
+    assert.equal(row.total_articles, 2)
+    assert.equal(row.total_published, 1)
     assert.ok(users.some((u) => u.role === 'admin'))
   })
 
