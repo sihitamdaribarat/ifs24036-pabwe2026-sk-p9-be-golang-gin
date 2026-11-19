@@ -191,16 +191,16 @@ func TestAuthorCRUDFlow(t *testing.T) {
 
 	// Statistik.
 	stats := e.call(http.MethodGet, "/api/posts/stats", &e.budi, nil).data()
-	assert.Equal(t, float64(3), stats["total"])
-	assert.Equal(t, float64(1), stats["published"])
-	assert.Equal(t, float64(2), stats["draft"])
+	assert.Equal(t, float64(3), stats["total_articles"])
+	assert.Equal(t, float64(1), stats["total_selesai"])
+	assert.Equal(t, float64(2), stats["belum_selesai"])
 
 	draftID := int(draft["id"].(float64))
 	path := fmt.Sprintf("/api/posts/%d", draftID)
 
 	// Detail.
 	assert.Equal(t, http.StatusOK, e.call(http.MethodGet, path, &e.budi, nil).Code)
-	assert.Equal(t, http.StatusNotFound, e.call(http.MethodGet, path, &e.andi, nil).Code)
+	assert.Equal(t, http.StatusForbidden, e.call(http.MethodGet, path, &e.andi, nil).Code)
 	assert.Equal(t, http.StatusNotFound, e.call(http.MethodGet, "/api/posts/9999", &e.budi, nil).Code)
 	assert.Equal(t, http.StatusBadRequest, e.call(http.MethodGet, "/api/posts/abc", &e.budi, nil).Code)
 	assert.Equal(t, http.StatusBadRequest, e.call(http.MethodGet, "/api/posts/0", &e.budi, nil).Code)
@@ -220,7 +220,20 @@ func TestAuthorCRUDFlow(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, e.call(http.MethodPut, path, &e.budi, "{bad").Code)
 	assert.Equal(t, http.StatusBadRequest, e.call(http.MethodPut, "/api/posts/abc", &e.budi, nil).Code)
 	assert.Equal(t, http.StatusBadRequest, e.call(http.MethodPut, path, &e.budi, PostRequest{Title: "x", Content: "y", Category: "zzz"}).Code)
-	assert.Equal(t, http.StatusNotFound, e.call(http.MethodPut, path, &e.andi, PostRequest{Title: "x", Content: "y"}).Code)
+	assert.Equal(t, http.StatusForbidden, e.call(http.MethodPut, path, &e.andi, PostRequest{Title: "x", Content: "y"}).Code)
+
+	// Update parsial: hanya judul; ID tidak ada → 404 (dicek sebelum validasi isi).
+	res = e.call(http.MethodPut, path, &e.budi, map[string]string{"title": "Golang Parsial"})
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, "golang-parsial", res.data()["slug"])
+	assert.Equal(t, "konten", res.data()["content"])
+	assert.Equal(t, http.StatusNotFound, e.call(http.MethodPut, "/api/posts/9999", &e.budi, map[string]string{"title": "Tidak Ada"}).Code)
+	assert.Equal(t, http.StatusBadRequest, e.call(http.MethodPut, path, &e.budi, map[string]string{"title": "  "}).Code)
+	assert.Equal(t, http.StatusBadRequest, e.call(http.MethodPut, path, &e.budi, map[string]string{"content": ""}).Code)
+	res = e.call(http.MethodPut, path, &e.budi, map[string]any{"excerpt": " Baru ", "cover_image_path": " /img.png ", "is_published": true})
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Equal(t, "Baru", res.data()["excerpt"])
+	assert.Equal(t, "/img.png", res.data()["cover_image_path"])
 
 	// Toggle publish: terbit → draf → terbit.
 	togglePath := path + "/toggle-publish"
@@ -235,11 +248,12 @@ func TestAuthorCRUDFlow(t *testing.T) {
 	assert.Equal(t, "Artikel berhasil diterbitkan", res.Body["message"])
 
 	assert.Equal(t, http.StatusBadRequest, e.call(http.MethodPatch, "/api/posts/abc/toggle-publish", &e.budi, nil).Code)
-	assert.Equal(t, http.StatusNotFound, e.call(http.MethodPatch, togglePath, &e.andi, nil).Code)
+	assert.Equal(t, http.StatusForbidden, e.call(http.MethodPatch, togglePath, &e.andi, nil).Code)
+	assert.Equal(t, http.StatusNotFound, e.call(http.MethodPatch, "/api/posts/9999/toggle-publish", &e.budi, nil).Code)
 
 	// Delete.
 	assert.Equal(t, http.StatusBadRequest, e.call(http.MethodDelete, "/api/posts/abc", &e.budi, nil).Code)
-	assert.Equal(t, http.StatusNotFound, e.call(http.MethodDelete, path, &e.andi, nil).Code)
+	assert.Equal(t, http.StatusForbidden, e.call(http.MethodDelete, path, &e.andi, nil).Code)
 	assert.Equal(t, http.StatusOK, e.call(http.MethodDelete, path, &e.budi, nil).Code)
 	assert.Equal(t, http.StatusNotFound, e.call(http.MethodDelete, path, &e.budi, nil).Code)
 }
@@ -253,6 +267,8 @@ func TestPublicEndpoints(t *testing.T) {
 	res := e.call(http.MethodGet, "/api/public/posts", nil, nil)
 	assert.Equal(t, http.StatusOK, res.Code)
 	assert.Len(t, res.list(), 2)
+	// Endpoint publik tidak membocorkan data internal user_id.
+	assert.NotContains(t, res.list()[0].(map[string]any), "user_id")
 
 	assert.Len(t, e.call(http.MethodGet, "/api/public/posts?q=kecerdasan", nil, nil).list(), 1)
 	assert.Len(t, e.call(http.MethodGet, "/api/public/posts?category=Gaya%20Hidup", nil, nil).list(), 1)
@@ -262,6 +278,7 @@ func TestPublicEndpoints(t *testing.T) {
 	assert.Equal(t, http.StatusOK, res.Code)
 	assert.Equal(t, "AI di Sekolah", res.data()["title"])
 	assert.Equal(t, "budi", res.data()["author"].(map[string]any)["username"])
+	assert.NotContains(t, res.data(), "user_id")
 
 	assert.Equal(t, http.StatusNotFound, e.call(http.MethodGet, "/api/public/posts/draf-rahasia", nil, nil).Code)
 	assert.Equal(t, http.StatusNotFound, e.call(http.MethodGet, "/api/public/posts/tidak-ada", nil, nil).Code)
@@ -288,7 +305,11 @@ func TestAdminEndpoints(t *testing.T) {
 	assert.Equal(t, http.StatusOK, res.Code)
 	assert.Len(t, res.list(), 2)
 
-	assert.Equal(t, http.StatusNotFound, e.call(http.MethodGet, "/api/admin/users/9999/posts", &e.admin, nil).Code)
+	// Pengguna tidak ada → daftar kosong (bukan error).
+	res = e.call(http.MethodGet, "/api/admin/users/9999/posts", &e.admin, nil)
+	assert.Equal(t, http.StatusOK, res.Code)
+	assert.Empty(t, res.list())
+	assert.Equal(t, float64(e.budi.ID), e.call(http.MethodGet, fmt.Sprintf("/api/admin/users/%d/posts", e.budi.ID), &e.admin, nil).list()[0].(map[string]any)["user_id"])
 	assert.Equal(t, http.StatusBadRequest, e.call(http.MethodGet, "/api/admin/users/abc/posts", &e.admin, nil).Code)
 }
 
@@ -360,13 +381,14 @@ func TestServiceErrors(t *testing.T) {
 	created, err := svc.Create(e.budi.ID, PostRequest{Title: "A", Content: "a"})
 	require.NoError(t, err)
 
+	ptr := func(s string) *string { return &s }
 	repo.slugErr = errDB
-	_, err = svc.Update(e.budi.ID, created.ID, PostRequest{Title: "B", Content: "b"})
+	_, err = svc.Update(e.budi.ID, created.ID, UpdatePostRequest{Title: ptr("B")})
 	assert.ErrorIs(t, err, errDB)
 	repo.slugErr = nil
 
 	repo.updateErr = errDB
-	_, err = svc.Update(e.budi.ID, created.ID, PostRequest{Title: "A", Content: "b"})
+	_, err = svc.Update(e.budi.ID, created.ID, UpdatePostRequest{Title: ptr("A"), Content: ptr("b")})
 	assert.ErrorIs(t, err, errDB)
 
 	_, err = svc.TogglePublish(e.budi.ID, created.ID)

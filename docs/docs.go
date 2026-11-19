@@ -164,8 +164,8 @@ const docTemplate = `{
                             ]
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/response.Body"
                         }
@@ -352,12 +352,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/response.Body"
                         }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/response.Body"
-                        }
                     }
                 }
             }
@@ -397,7 +391,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/auth.User"
+                                            "$ref": "#/definitions/auth.LoginResponse"
                                         }
                                     }
                                 }
@@ -406,12 +400,6 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Body"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/response.Body"
                         }
@@ -667,6 +655,12 @@ const docTemplate = `{
                             ]
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -700,12 +694,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Data artikel",
+                        "description": "Field artikel yang diperbarui (opsional)",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/post.PostRequest"
+                            "$ref": "#/definitions/post.UpdatePostRequest"
                         }
                     }
                 ],
@@ -730,6 +724,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/response.Body"
                         }
@@ -767,6 +767,12 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/response.Body"
                         }
@@ -820,6 +826,12 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
                         }
                     },
                     "404": {
@@ -1068,6 +1080,7 @@ const docTemplate = `{
         "auth.RegisterRequest": {
             "type": "object",
             "required": [
+                "email",
                 "password",
                 "username"
             ],
@@ -1253,14 +1266,45 @@ const docTemplate = `{
         "post.Stats": {
             "type": "object",
             "properties": {
-                "draft": {
+                "belum_selesai": {
                     "type": "integer"
                 },
-                "published": {
+                "total_articles": {
                     "type": "integer"
                 },
-                "total": {
+                "total_selesai": {
                     "type": "integer"
+                }
+            }
+        },
+        "post.UpdatePostRequest": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "Teknologi"
+                },
+                "content": {
+                    "type": "string",
+                    "example": "## Judul\n\nIsi artikel dalam Markdown."
+                },
+                "cover_image_path": {
+                    "type": "string",
+                    "example": "https://picsum.photos/1200/600"
+                },
+                "excerpt": {
+                    "type": "string",
+                    "example": "Ringkasan singkat artikel."
+                },
+                "is_published": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Belajar Golang Gin"
                 }
             }
         },

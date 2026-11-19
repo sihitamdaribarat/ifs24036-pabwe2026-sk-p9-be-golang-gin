@@ -29,7 +29,9 @@ describe('4-ai', () => {
   })
 
   test('topik kosong / kategori tidak valid → 400', async () => {
-    expectFail(await api('POST', '/api/posts/ai-generate', { token, body: {} }), 400)
+    const res = await api('POST', '/api/posts/ai-generate', { token, body: {} })
+    expectFail(res, 400)
+    assert.match(res.body.message.toLowerCase(), /topic/)
     expectFail(await api('POST', '/api/posts/ai-generate', { token, body: { topic: '   ' } }), 400)
     expectFail(await api('POST', '/api/posts/ai-generate', { token, body: { topic: 'AI', category: 'Olahraga' } }), 400)
   })

@@ -4,35 +4,44 @@ import { describe, test } from 'node:test'
 import { api, expectFail, expectOk, login, register, registerAndLogin, uid } from './helpers.js'
 
 describe('1-auth', () => {
-  test('register penulis baru → 201 tanpa membocorkan password', async () => {
+  test('register penulis baru → 201 dengan token JWT & user (tanpa password)', async () => {
     const username = `budi_${uid()}`
     const res = await api('POST', '/api/auth/register', {
       body: { name: 'Budi Santoso', username, email: `${username}@example.com`, password: 'rahasia123' },
     })
     const data = expectOk(res, 201)
-    assert.equal(data.username, username)
-    assert.equal(data.role, 'member')
-    assert.equal(data.password, undefined)
+    assert.equal(data.token.split('.').length, 3)
+    assert.equal(data.user.username, username)
+    assert.equal(data.user.role, 'member')
+    assert.ok(!JSON.stringify(data).toLowerCase().includes('password'))
   })
 
-  test('register hanya username & password (name/email opsional)', async () => {
+  test('register tanpa name tetap berhasil (name = username)', async () => {
     const username = `min-${uid()}`
-    const data = expectOk(await api('POST', '/api/auth/register', { body: { username, password: 'rahasia123' } }), 201)
-    assert.equal(data.username, username)
+    const data = expectOk(await api('POST', '/api/auth/register', { body: { username, email: `${username}@example.com`, password: 'rahasia123' } }), 201)
+    assert.equal(data.user.name, username)
   })
 
-  test('register username duplikat → 409', async () => {
+  test('register username / email duplikat → 400', async () => {
     const { username } = await register()
-    const res = await api('POST', '/api/auth/register', {
+    expectFail(await api('POST', '/api/auth/register', {
       body: { name: 'X', username, email: `lain_${uid()}@example.com`, password: 'rahasia123' },
-    })
-    expectFail(res, 409)
+    }), 400)
+    expectFail(await api('POST', '/api/auth/register', {
+      body: { name: 'X', username: `lain_${uid()}`, email: `${username}@example.com`, password: 'rahasia123' },
+    }), 400)
   })
 
-  test('register data tidak valid → 400', async () => {
-    expectFail(await api('POST', '/api/auth/register', { body: { username: `u_${uid()}` } }), 400)
-    expectFail(await api('POST', '/api/auth/register', { body: { username: `u_${uid()}`, email: 'bukan-email', password: 'rahasia123' } }), 400)
-    expectFail(await api('POST', '/api/auth/register', { body: '{rusak' }), 400)
+  test('register tidak valid → 400 (tanpa email / password pendek / email salah)', async () => {
+    const u = () => `u_${uid()}`
+    for (const body of [
+      { name: 'A', username: u(), password: 'rahasia123' },
+      { name: 'A', username: u(), email: `${u()}@example.com`, password: '123' },
+      { name: 'A', username: u(), email: 'bukan-email', password: 'rahasia123' },
+      '{rusak',
+    ]) {
+      expectFail(await api('POST', '/api/auth/register', { body }), 400)
+    }
   })
 
   test('login dengan username → token JWT & data user', async () => {

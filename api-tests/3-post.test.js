@@ -47,21 +47,31 @@ describe('3-post', () => {
     assert.ok(list.every((p) => p.user_id === author.user.id), 'artikel penulis lain ikut tampil')
   })
 
-  test('detail by id: milik sendiri 200, milik orang lain 404, id rusak 400', async () => {
+  test('detail by id: milik sendiri 200, tidak ada 404, id rusak 400, milik orang lain 403', async () => {
     const post = await createPost(author.token)
     assert.equal(expectOk(await api('GET', `/api/posts/${post.id}`, { token: author.token })).id, post.id)
-    expectFail(await api('GET', `/api/posts/${post.id}`, { token: other.token }), 404)
+    expectFail(await api('GET', '/api/posts/99999999', { token: author.token }), 404)
     expectFail(await api('GET', '/api/posts/abc', { token: author.token }), 400)
+    expectFail(await api('GET', `/api/posts/${post.id}`, { token: other.token }), 403)
   })
 
-  test('update artikel → judul & slug berubah, orang lain 404', async () => {
+  test('update parsial: hanya judul; ID tidak ada 404; milik orang lain 403', async () => {
+    const post = await createPost(author.token)
+    const updated = expectOk(await api('PUT', `/api/posts/${post.id}`, { token: author.token, body: { title: `Hanya Judul ${uid()}` } }))
+    assert.equal(updated.content, post.content)
+    expectFail(await api('PUT', '/api/posts/99999999', { token: author.token, body: { title: 'Tidak Ada' } }), 404)
+    expectFail(await api('PUT', `/api/posts/${post.id}`, { token: other.token, body: { title: 'Dibajak' } }), 403)
+    expectFail(await api('PATCH', `/api/posts/${post.id}/toggle-publish`, { token: other.token }), 403)
+    expectFail(await api('PATCH', '/api/posts/99999999/toggle-publish', { token: author.token }), 404)
+  })
+
+  test('update artikel → judul & slug berubah', async () => {
     const post = await createPost(author.token)
     const title = `Judul Diperbarui ${uid()}`
     const updated = expectOk(await api('PUT', `/api/posts/${post.id}`, { token: author.token, body: postPayload({ title, category: 'Bisnis' }) }))
     assert.equal(updated.title, title)
     assert.equal(updated.category, 'Bisnis')
     assert.notEqual(updated.slug, post.slug)
-    expectFail(await api('PUT', `/api/posts/${post.id}`, { token: other.token, body: postPayload() }), 404)
   })
 
   test('toggle publish: draf ↔ terbit dengan published_at', async () => {
@@ -73,18 +83,21 @@ describe('3-post', () => {
     assert.equal(off.is_published, false)
   })
 
-  test('statistik 3 kartu (total, terbit, draf)', async () => {
+  test('statistik memakai total_articles / total_selesai / belum_selesai', async () => {
     const fresh = await registerAndLogin('statistik')
     await createPost(fresh.token, { is_published: true })
     await createPost(fresh.token)
     await createPost(fresh.token)
-    assert.deepEqual(expectOk(await api('GET', '/api/posts/stats', { token: fresh.token })), { total: 3, published: 1, draft: 2 })
+    assert.deepEqual(expectOk(await api('GET', '/api/posts/stats', { token: fresh.token })), { total_articles: 3, total_selesai: 1, belum_selesai: 2 })
   })
 
-  test('hapus artikel → 200 lalu 404', async () => {
+  test('hapus artikel → statistik berkurang; orang lain 403; tidak ada 404', async () => {
     const post = await createPost(author.token)
-    expectFail(await api('DELETE', `/api/posts/${post.id}`, { token: other.token }), 404)
+    const before = expectOk(await api('GET', '/api/posts/stats', { token: author.token }))
+    expectFail(await api('DELETE', `/api/posts/${post.id}`, { token: other.token }), 403)
     expectOk(await api('DELETE', `/api/posts/${post.id}`, { token: author.token }))
-    expectFail(await api('GET', `/api/posts/${post.id}`, { token: author.token }), 404)
+    const after = expectOk(await api('GET', '/api/posts/stats', { token: author.token }))
+    assert.equal(after.total_articles, before.total_articles - 1)
+    expectFail(await api('DELETE', `/api/posts/${post.id}`, { token: author.token }), 404)
   })
 })

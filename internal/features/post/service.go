@@ -16,10 +16,12 @@ const WordsPerMinute = 200
 var (
 	// ErrPostNotFound dikembalikan jika artikel tidak ditemukan.
 	ErrPostNotFound = errors.New("artikel tidak ditemukan")
-	// ErrUserNotFound dikembalikan jika pengguna tidak ditemukan.
-	ErrUserNotFound = errors.New("pengguna tidak ditemukan")
+	// ErrForbidden dikembalikan jika artikel ada tetapi milik penulis lain.
+	ErrForbidden = errors.New("anda tidak memiliki akses ke artikel ini")
 	// ErrInvalidCategory dikembalikan jika kategori tidak dikenal.
 	ErrInvalidCategory = errors.New("kategori tidak valid")
+	// ErrEmptyField dikembalikan jika judul atau konten diperbarui menjadi kosong.
+	ErrEmptyField = errors.New("judul dan konten artikel tidak boleh kosong")
 )
 
 // Service berisi logika bisnis artikel.
@@ -101,19 +103,37 @@ func notFound(err error, domainErr error) error {
 	return err
 }
 
-// ListPublic mengambil artikel terbit untuk halaman publik.
-func (s *Service) ListPublic(filter Filter) ([]PostResponse, error) {
-	posts, err := s.repo.List(filter, 0, true)
-	return ToResponses(posts), err
+// findOwned mengambil artikel berdasarkan ID: ErrPostNotFound jika tidak ada,
+// ErrForbidden jika milik penulis lain.
+func (s *Service) findOwned(userID, id uint) (*Post, error) {
+	p, err := s.repo.FindByID(id)
+	if err != nil {
+		return nil, notFound(err, ErrPostNotFound)
+	}
+	if p.UserID != userID {
+		return nil, ErrForbidden
+	}
+	return p, nil
 }
 
-// GetPublicBySlug mengambil detail artikel terbit berdasarkan slug.
+// ListPublic mengambil artikel terbit untuk halaman publik (tanpa user_id).
+func (s *Service) ListPublic(filter Filter) ([]PostResponse, error) {
+	posts, err := s.repo.List(filter, 0, true)
+	res := ToResponses(posts)
+	for i := range res {
+		res[i].UserID = 0
+	}
+	return res, err
+}
+
+// GetPublicBySlug mengambil detail artikel terbit berdasarkan slug (tanpa user_id).
 func (s *Service) GetPublicBySlug(slug string) (*PostResponse, error) {
 	p, err := s.repo.FindPublishedBySlug(slug)
 	if err != nil {
 		return nil, notFound(err, ErrPostNotFound)
 	}
 	res := ToResponse(*p)
+	res.UserID = 0
 	return &res, nil
 }
 
@@ -125,9 +145,9 @@ func (s *Service) ListByAuthor(userID uint, filter Filter) ([]PostResponse, erro
 
 // GetByAuthor mengambil satu artikel milik penulis berdasarkan ID.
 func (s *Service) GetByAuthor(userID, id uint) (*PostResponse, error) {
-	p, err := s.repo.FindByIDAndUser(id, userID)
+	p, err := s.findOwned(userID, id)
 	if err != nil {
-		return nil, notFound(err, ErrPostNotFound)
+		return nil, err
 	}
 	res := ToResponse(*p)
 	return &res, nil
@@ -162,33 +182,51 @@ func (s *Service) Create(userID uint, req PostRequest) (*PostResponse, error) {
 	return s.GetByAuthor(userID, p.ID)
 }
 
-// Update memperbarui artikel milik penulis. Slug dibuat ulang jika judul berubah.
-func (s *Service) Update(userID, id uint, req PostRequest) (*PostResponse, error) {
-	category, err := NormalizeCategory(req.Category)
+// Update memperbarui sebagian field artikel milik penulis (hanya field yang dikirim).
+// Kepemilikan diperiksa lebih dulu (404/403), baru validasi isi. Slug dibuat ulang jika
+// judul berubah.
+func (s *Service) Update(userID, id uint, req UpdatePostRequest) (*PostResponse, error) {
+	p, err := s.findOwned(userID, id)
 	if err != nil {
 		return nil, err
 	}
 
-	p, err := s.repo.FindByIDAndUser(id, userID)
-	if err != nil {
-		return nil, notFound(err, ErrPostNotFound)
-	}
-
-	title := strings.TrimSpace(req.Title)
-	if title != p.Title {
-		slug, err := s.uniqueSlug(title, p.ID)
+	if req.Category != nil {
+		category, err := NormalizeCategory(*req.Category)
 		if err != nil {
 			return nil, err
 		}
-		p.Slug = slug
+		p.Category = category
 	}
-
-	p.Title = title
-	p.Category = category
-	p.Excerpt = strings.TrimSpace(req.Excerpt)
-	p.Content = req.Content
-	p.CoverImagePath = strings.TrimSpace(req.CoverImagePath)
-	s.setPublished(p, req.IsPublished)
+	if req.Content != nil {
+		if strings.TrimSpace(*req.Content) == "" {
+			return nil, ErrEmptyField
+		}
+		p.Content = *req.Content
+	}
+	if req.Title != nil {
+		title := strings.TrimSpace(*req.Title)
+		if title == "" {
+			return nil, ErrEmptyField
+		}
+		if title != p.Title {
+			slug, err := s.uniqueSlug(title, p.ID)
+			if err != nil {
+				return nil, err
+			}
+			p.Slug = slug
+		}
+		p.Title = title
+	}
+	if req.Excerpt != nil {
+		p.Excerpt = strings.TrimSpace(*req.Excerpt)
+	}
+	if req.CoverImagePath != nil {
+		p.CoverImagePath = strings.TrimSpace(*req.CoverImagePath)
+	}
+	if req.IsPublished != nil {
+		s.setPublished(p, *req.IsPublished)
+	}
 
 	if err := s.repo.Update(p); err != nil {
 		return nil, err
@@ -199,9 +237,9 @@ func (s *Service) Update(userID, id uint, req PostRequest) (*PostResponse, error
 
 // TogglePublish membalik status terbit/draf artikel beserta published_at.
 func (s *Service) TogglePublish(userID, id uint) (*PostResponse, error) {
-	p, err := s.repo.FindByIDAndUser(id, userID)
+	p, err := s.findOwned(userID, id)
 	if err != nil {
-		return nil, notFound(err, ErrPostNotFound)
+		return nil, err
 	}
 
 	s.setPublished(p, !p.IsPublished)
@@ -214,9 +252,9 @@ func (s *Service) TogglePublish(userID, id uint) (*PostResponse, error) {
 
 // Delete menghapus artikel milik penulis.
 func (s *Service) Delete(userID, id uint) error {
-	p, err := s.repo.FindByIDAndUser(id, userID)
+	p, err := s.findOwned(userID, id)
 	if err != nil {
-		return notFound(err, ErrPostNotFound)
+		return err
 	}
 	return s.repo.Delete(p)
 }
@@ -242,14 +280,8 @@ func (s *Service) ListUsers() ([]UserSummary, error) {
 }
 
 // ListByUser mengambil seluruh artikel pengguna tertentu (monitoring admin).
+// Pengguna yang tidak ada menghasilkan daftar kosong, bukan error.
 func (s *Service) ListByUser(userID uint) ([]PostResponse, error) {
-	exists, err := s.repo.UserExists(userID)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, ErrUserNotFound
-	}
 	return s.ListByAuthor(userID, Filter{})
 }
 

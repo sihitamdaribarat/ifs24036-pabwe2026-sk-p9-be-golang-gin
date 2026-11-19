@@ -23,10 +23,8 @@ func NewHandler(service *Service) *Handler {
 // statusFor memetakan error domain ke HTTP status code.
 func statusFor(err error) int {
 	switch {
-	case errors.Is(err, ErrInvalidUsername):
+	case errors.Is(err, ErrInvalidUsername), errors.Is(err, ErrUsernameTaken), errors.Is(err, ErrEmailTaken):
 		return http.StatusBadRequest
-	case errors.Is(err, ErrUsernameTaken), errors.Is(err, ErrEmailTaken):
-		return http.StatusConflict
 	case errors.Is(err, ErrInvalidCredentials):
 		return http.StatusUnauthorized
 	case errors.Is(err, ErrUserNotFound):
@@ -51,9 +49,8 @@ func respondError(c *gin.Context, err error) {
 // @Accept       json
 // @Produce      json
 // @Param        body  body      RegisterRequest  true  "Data registrasi"
-// @Success      201   {object}  response.Body{data=User}
+// @Success      201   {object}  response.Body{data=LoginResponse}
 // @Failure      400   {object}  response.Body
-// @Failure      409   {object}  response.Body
 // @Router       /api/auth/register [post]
 func (h *Handler) Register(c *gin.Context) {
 	var req RegisterRequest
@@ -62,12 +59,12 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	user, err := h.service.Register(req)
+	result, err := h.service.Register(req)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	response.Success(c, http.StatusCreated, "Registrasi berhasil", user)
+	response.Success(c, http.StatusCreated, "Registrasi berhasil", result)
 }
 
 // Login godoc
@@ -134,7 +131,6 @@ func (h *Handler) GetProfile(c *gin.Context) {
 // @Param        body  body      UpdateProfileRequest  true  "Data profil"
 // @Success      200   {object}  response.Body{data=User}
 // @Failure      400   {object}  response.Body
-// @Failure      409   {object}  response.Body
 // @Router       /api/auth/profile [put]
 func (h *Handler) UpdateProfile(c *gin.Context) {
 	var req UpdateProfileRequest

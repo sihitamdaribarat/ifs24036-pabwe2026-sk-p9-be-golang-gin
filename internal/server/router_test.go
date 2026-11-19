@@ -173,7 +173,7 @@ func TestMultiTierAccess(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, code)
 	code, body := call(r, http.MethodGet, "/api/posts/stats", member, nil)
 	assert.Equal(t, http.StatusOK, code)
-	assert.Equal(t, float64(1), body["data"].(map[string]any)["published"])
+	assert.Equal(t, float64(1), body["data"].(map[string]any)["total_selesai"])
 	code, _ = call(r, http.MethodGet, "/api/auth/profile", member, nil)
 	assert.Equal(t, http.StatusOK, code)
 

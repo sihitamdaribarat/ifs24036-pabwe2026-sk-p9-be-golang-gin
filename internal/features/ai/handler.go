@@ -33,7 +33,7 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) Generate(c *gin.Context) {
 	var req GenerateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, http.StatusBadRequest, "Topik artikel wajib diisi")
+		response.Fail(c, http.StatusBadRequest, "topic wajib diisi (topik artikel)")
 		return
 	}
 

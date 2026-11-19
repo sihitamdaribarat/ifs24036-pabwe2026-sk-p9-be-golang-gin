@@ -12,13 +12,12 @@ import (
 type Repository interface {
 	List(filter Filter, userID uint, publishedOnly bool) ([]Post, error)
 	FindPublishedBySlug(slug string) (*Post, error)
-	FindByIDAndUser(id, userID uint) (*Post, error)
+	FindByID(id uint) (*Post, error)
 	SlugExists(slug string, excludeID uint) (bool, error)
 	Create(post *Post) error
 	Update(post *Post) error
 	Delete(post *Post) error
 	Stats(userID uint) (Stats, error)
-	UserExists(userID uint) (bool, error)
 	ListUserSummaries() ([]UserSummary, error)
 }
 
@@ -63,9 +62,9 @@ func (r *repository) FindPublishedBySlug(slug string) (*Post, error) {
 	return &p, nil
 }
 
-func (r *repository) FindByIDAndUser(id, userID uint) (*Post, error) {
+func (r *repository) FindByID(id uint) (*Post, error) {
 	var p Post
-	if err := r.db.Preload("User").Where("id = ? AND user_id = ?", id, userID).First(&p).Error; err != nil {
+	if err := r.db.Preload("User").First(&p, id).Error; err != nil {
 		return nil, err
 	}
 	return &p, nil
@@ -92,17 +91,11 @@ func (r *repository) Delete(p *Post) error {
 func (r *repository) Stats(userID uint) (Stats, error) {
 	var stats Stats
 	err := r.db.Model(&Post{}).
-		Select("COUNT(*) AS total, COALESCE(SUM(CASE WHEN is_published THEN 1 ELSE 0 END), 0) AS published").
+		Select("COUNT(*) AS total_articles, COALESCE(SUM(CASE WHEN is_published THEN 1 ELSE 0 END), 0) AS total_selesai").
 		Where("user_id = ?", userID).
 		Scan(&stats).Error
-	stats.Draft = stats.Total - stats.Published
+	stats.BelumSelesai = stats.TotalArticles - stats.TotalSelesai
 	return stats, err
-}
-
-func (r *repository) UserExists(userID uint) (bool, error) {
-	var count int64
-	err := r.db.Model(&auth.User{}).Where("id = ?", userID).Count(&count).Error
-	return count > 0, err
 }
 
 func (r *repository) ListUserSummaries() ([]UserSummary, error) {

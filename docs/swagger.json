@@ -157,8 +157,8 @@
                             ]
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/response.Body"
                         }
@@ -345,12 +345,6 @@
                         "schema": {
                             "$ref": "#/definitions/response.Body"
                         }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/response.Body"
-                        }
                     }
                 }
             }
@@ -390,7 +384,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/auth.User"
+                                            "$ref": "#/definitions/auth.LoginResponse"
                                         }
                                     }
                                 }
@@ -399,12 +393,6 @@
                     },
                     "400": {
                         "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/response.Body"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/response.Body"
                         }
@@ -660,6 +648,12 @@
                             ]
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -693,12 +687,12 @@
                         "required": true
                     },
                     {
-                        "description": "Data artikel",
+                        "description": "Field artikel yang diperbarui (opsional)",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/post.PostRequest"
+                            "$ref": "#/definitions/post.UpdatePostRequest"
                         }
                     }
                 ],
@@ -723,6 +717,12 @@
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/response.Body"
                         }
@@ -760,6 +760,12 @@
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/response.Body"
                         }
@@ -813,6 +819,12 @@
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
                         }
                     },
                     "404": {
@@ -1061,6 +1073,7 @@
         "auth.RegisterRequest": {
             "type": "object",
             "required": [
+                "email",
                 "password",
                 "username"
             ],
@@ -1246,14 +1259,45 @@
         "post.Stats": {
             "type": "object",
             "properties": {
-                "draft": {
+                "belum_selesai": {
                     "type": "integer"
                 },
-                "published": {
+                "total_articles": {
                     "type": "integer"
                 },
-                "total": {
+                "total_selesai": {
                     "type": "integer"
+                }
+            }
+        },
+        "post.UpdatePostRequest": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "Teknologi"
+                },
+                "content": {
+                    "type": "string",
+                    "example": "## Judul\n\nIsi artikel dalam Markdown."
+                },
+                "cover_image_path": {
+                    "type": "string",
+                    "example": "https://picsum.photos/1200/600"
+                },
+                "excerpt": {
+                    "type": "string",
+                    "example": "Ringkasan singkat artikel."
+                },
+                "is_published": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Belajar Golang Gin"
                 }
             }
         },

@@ -66,7 +66,7 @@ export async function register(prefix = 'penulis') {
     body: { name: `Penulis ${username}`, username, email: `${username}@example.com`, password },
   })
   expectStatus(res, 201)
-  return { username, password, user: res.body.data }
+  return { username, password, user: res.body.data.user }
 }
 
 export async function login(username, password) {

@@ -21,6 +21,9 @@ describe('2-public', () => {
   test('GET /api/public/posts → array artikel terbit saja', async () => {
     const data = expectOk(await api('GET', '/api/public/posts'))
     assert.ok(Array.isArray(data))
+    const serialized = JSON.stringify(data).toLowerCase()
+    assert.ok(!serialized.includes('password'), 'data publik memuat password')
+    assert.ok(!serialized.includes('user_id'), 'data publik memuat user_id (data internal)')
     assert.ok(data.every((p) => p.is_published === true), 'ada draf yang tampil di publik')
     assert.ok(data.some((p) => p.id === published.id))
     assert.ok(!data.some((p) => p.id === draft.id))
@@ -41,6 +44,7 @@ describe('2-public', () => {
   test('detail artikel berdasarkan slug lengkap dengan penulis & reading time', async () => {
     const data = expectOk(await api('GET', `/api/public/posts/${published.slug}`))
     assert.equal(data.id, published.id)
+    assert.equal(data.user_id, undefined)
     assert.ok(data.author && data.author.username, 'data penulis tidak ada')
     assert.ok(data.reading_time >= 1)
     assert.ok(data.content.length > 0)

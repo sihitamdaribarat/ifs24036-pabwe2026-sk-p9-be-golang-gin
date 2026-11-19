@@ -92,26 +92,42 @@ func Migrate(db *gorm.DB) error {
 	return db.AutoMigrate(&auth.User{}, &post.Post{})
 }
 
-// Seed membuat akun admin (dari ADMIN_USERNAME / ADMIN_PASSWORD) dan satu artikel sambutan
-// jika belum ada.
-func Seed(db *gorm.DB, username, password string) error {
+// ensureAdmin membuat akun admin jika belum ada. Jika username sudah terdaftar (misal
+// sebagai member) atau password-nya berbeda dari ADMIN_PASSWORD, role dipulihkan menjadi
+// admin dan password disamakan, sehingga kredensial di .env selalu menghasilkan token admin.
+func ensureAdmin(db *gorm.DB, username, password string) (*auth.User, error) {
 	var admin auth.User
 	err := db.Where("username = ?", username).First(&admin).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		hash, hashErr := auth.HashPassword(password)
-		if hashErr != nil {
-			return hashErr
-		}
-		admin = auth.User{
-			Name:     "Administrator",
-			Username: username,
-			Email:    username + "@delcom.org",
-			Password: hash,
-			Role:     auth.RoleAdmin,
-			Bio:      "Administrator Delcom Blog",
-		}
-		err = db.Create(&admin).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
 	}
+	found := err == nil
+	if found && admin.Role == auth.RoleAdmin && auth.CheckPassword(admin.Password, password) {
+		return &admin, nil
+	}
+
+	hash, err := auth.HashPassword(password)
+	if err != nil {
+		return nil, err
+	}
+	admin.Password = hash
+	admin.Role = auth.RoleAdmin
+	if found {
+		log.Printf("[INFO] akun %q dipulihkan sebagai admin sesuai ADMIN_USERNAME / ADMIN_PASSWORD", username)
+		return &admin, db.Save(&admin).Error
+	}
+
+	admin.Name = "Administrator"
+	admin.Username = username
+	admin.Email = username + "@delcom.org"
+	admin.Bio = "Administrator Delcom Blog"
+	return &admin, db.Create(&admin).Error
+}
+
+// Seed memastikan akun admin (dari ADMIN_USERNAME / ADMIN_PASSWORD) tersedia dan membuat
+// satu artikel sambutan jika belum ada artikel.
+func Seed(db *gorm.DB, username, password string) error {
+	admin, err := ensureAdmin(db, username, password)
 	if err != nil {
 		return err
 	}

@@ -89,28 +89,33 @@ func login(t *testing.T, r http.Handler, username, password string) string {
 func TestRegister(t *testing.T) {
 	r := setupRouter(setupDB(t))
 
+	// Registrasi langsung menerbitkan token JWT (auto login).
 	res := register(r, "Budi", "Budi@Example.com")
 	assert.Equal(t, http.StatusCreated, res.Code)
 	data := res.Body["data"].(map[string]any)
-	assert.Equal(t, "budi", data["username"])
-	assert.Equal(t, "budi@example.com", data["email"])
-	assert.Equal(t, RoleMember, data["role"])
-	_, hasPassword := data["password"]
+	assert.Len(t, strings.Split(data["token"].(string), "."), 3)
+	user := data["user"].(map[string]any)
+	assert.Equal(t, "budi", user["username"])
+	assert.Equal(t, "budi@example.com", user["email"])
+	assert.Equal(t, RoleMember, user["role"])
+	_, hasPassword := user["password"]
 	assert.False(t, hasPassword)
 
-	assert.Equal(t, http.StatusConflict, register(r, "budi", "other@example.com").Code)
-	assert.Equal(t, http.StatusConflict, register(r, "andi", "budi@example.com").Code)
+	// Duplikat & data tidak valid → 400.
+	assert.Equal(t, http.StatusBadRequest, register(r, "budi", "other@example.com").Code)
+	assert.Equal(t, http.StatusBadRequest, register(r, "andi", "budi@example.com").Code)
 	assert.Equal(t, http.StatusBadRequest, call(r, http.MethodPost, "/api/auth/register", "", "{bad").Code)
 	assert.Equal(t, http.StatusBadRequest, register(r, "x", "invalid-email").Code)
 	assert.Equal(t, http.StatusBadRequest, register(r, "budi santoso", "bs@example.com").Code)
+	res = call(r, http.MethodPost, "/api/auth/register", "", map[string]string{"username": "tanpaemail", "password": "secret123"})
+	assert.Equal(t, http.StatusBadRequest, res.Code)
 
-	// Username dengan _ . - diizinkan; name & email opsional.
-	res = call(r, http.MethodPost, "/api/auth/register", "", map[string]string{"username": "Test_User-1.a", "password": "secret123"})
+	// Username dengan _ . - diizinkan; name opsional (bawaan = username).
+	res = call(r, http.MethodPost, "/api/auth/register", "", map[string]string{"username": "Test_User-1.a", "email": "t@example.com", "password": "secret123"})
 	assert.Equal(t, http.StatusCreated, res.Code)
-	data = res.Body["data"].(map[string]any)
-	assert.Equal(t, "test_user-1.a", data["username"])
-	assert.Equal(t, "test_user-1.a", data["name"])
-	assert.Equal(t, "test_user-1.a@delcom.org", data["email"])
+	user = res.Body["data"].(map[string]any)["user"].(map[string]any)
+	assert.Equal(t, "test_user-1.a", user["username"])
+	assert.Equal(t, "test_user-1.a", user["name"])
 }
 
 func TestLogin(t *testing.T) {
@@ -171,7 +176,7 @@ func TestProfileAndLogout(t *testing.T) {
 	assert.NotEmpty(t, login(t, r, "budi", "newpass123"))
 
 	res = call(r, http.MethodPut, "/api/auth/profile", token, UpdateProfileRequest{Name: "Budi", Email: "andi@example.com"})
-	assert.Equal(t, http.StatusConflict, res.Code)
+	assert.Equal(t, http.StatusBadRequest, res.Code)
 
 	res = call(r, http.MethodPut, "/api/auth/profile", token, "{bad")
 	assert.Equal(t, http.StatusBadRequest, res.Code)
@@ -274,8 +279,9 @@ func TestServiceErrors(t *testing.T) {
 	assert.ErrorIs(t, err, errDB)
 	repo.createErr = nil
 
-	user, err := svc.Register(newReq("e"))
+	registered, err := svc.Register(newReq("e"))
 	require.NoError(t, err)
+	user := registered.User
 
 	_, err = svc.UpdateProfile(user.ID, UpdateProfileRequest{Name: "E", Email: "e@example.com", Password: strings.Repeat("x", 100)})
 	assert.Error(t, err)
@@ -287,8 +293,8 @@ func TestServiceErrors(t *testing.T) {
 
 func TestStatusFor(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, statusFor(ErrInvalidUsername))
-	assert.Equal(t, http.StatusConflict, statusFor(ErrUsernameTaken))
-	assert.Equal(t, http.StatusConflict, statusFor(ErrEmailTaken))
+	assert.Equal(t, http.StatusBadRequest, statusFor(ErrUsernameTaken))
+	assert.Equal(t, http.StatusBadRequest, statusFor(ErrEmailTaken))
 	assert.Equal(t, http.StatusUnauthorized, statusFor(ErrInvalidCredentials))
 	assert.Equal(t, http.StatusNotFound, statusFor(ErrUserNotFound))
 	assert.Equal(t, http.StatusInternalServerError, statusFor(errDB))

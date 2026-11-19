@@ -44,16 +44,19 @@ func HashPassword(password string) (string, error) {
 	return string(hash), err
 }
 
-// Register mendaftarkan akun penulis baru dengan role member.
-func (s *Service) Register(req RegisterRequest) (*User, error) {
+// CheckPassword bernilai true jika password cocok dengan hash bcrypt.
+func CheckPassword(hash, password string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
+}
+
+// Register mendaftarkan akun penulis baru dengan role member lalu langsung menerbitkan
+// token JWT (auto login).
+func (s *Service) Register(req RegisterRequest) (*LoginResponse, error) {
 	username := strings.ToLower(strings.TrimSpace(req.Username))
 	if !usernamePattern.MatchString(username) {
 		return nil, ErrInvalidUsername
 	}
 	email := strings.ToLower(strings.TrimSpace(req.Email))
-	if email == "" {
-		email = username + "@delcom.org"
-	}
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		name = username
@@ -86,7 +89,13 @@ func (s *Service) Register(req RegisterRequest) (*User, error) {
 	if err := s.repo.Create(user); err != nil {
 		return nil, err
 	}
-	return user, nil
+	return s.issueToken(user)
+}
+
+// issueToken menerbitkan token JWT untuk user.
+func (s *Service) issueToken(user *User) (*LoginResponse, error) {
+	token, err := middleware.GenerateToken(s.secret, user.ID, user.Username, user.Role)
+	return &LoginResponse{Token: token, User: *user}, err
 }
 
 // Login memverifikasi kredensial dan menerbitkan token JWT.
@@ -99,12 +108,10 @@ func (s *Service) Login(req LoginRequest) (*LoginResponse, error) {
 		return nil, err
 	}
 
-	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)) != nil {
+	if !CheckPassword(user.Password, req.Password) {
 		return nil, ErrInvalidCredentials
 	}
-
-	token, err := middleware.GenerateToken(s.secret, user.ID, user.Username, user.Role)
-	return &LoginResponse{Token: token, User: *user}, err
+	return s.issueToken(user)
 }
 
 // Profile mengambil data user berdasarkan ID.

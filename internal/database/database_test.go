@@ -83,6 +83,26 @@ func TestSeed(t *testing.T) {
 	assert.Equal(t, int64(1), count)
 }
 
+func TestSeedRepairsExistingAdminAccount(t *testing.T) {
+	db, err := ConnectTest()
+	require.NoError(t, err)
+
+	// Username admin sudah terdaftar sebagai member dengan password lain.
+	hash, _ := auth.HashPassword("lama123")
+	require.NoError(t, db.Create(&auth.User{Name: "X", Username: "admin", Email: "x@example.com", Password: hash, Role: auth.RoleMember}).Error)
+
+	require.NoError(t, Seed(db, "admin", "rahasia"))
+	var admin auth.User
+	require.NoError(t, db.Where("username = ?", "admin").First(&admin).Error)
+	assert.Equal(t, auth.RoleAdmin, admin.Role)
+	assert.True(t, auth.CheckPassword(admin.Password, "rahasia"))
+
+	// Pemulihan gagal disimpan → error.
+	require.NoError(t, db.Model(&admin).Update("role", auth.RoleMember).Error)
+	require.NoError(t, db.Exec("CREATE TRIGGER blok_update BEFORE UPDATE ON users BEGIN SELECT RAISE(FAIL, 'blocked'); END").Error)
+	assert.Error(t, Seed(db, "admin", "rahasia"))
+}
+
 func TestSeedPasswordTooLong(t *testing.T) {
 	db, err := ConnectTest()
 	require.NoError(t, err)

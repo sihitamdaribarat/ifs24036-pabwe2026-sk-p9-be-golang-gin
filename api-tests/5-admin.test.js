@@ -48,8 +48,8 @@ describe('5-admin', () => {
     assert.ok(posts.every((p) => p.user_id === member.user.id))
   })
 
-  test('id pengguna tidak valid 400, tidak ada 404', async () => {
-    expectFail(await api('GET', '/api/admin/users/abc/posts', { token: admin.token }), 400)
-    expectFail(await api('GET', '/api/admin/users/999999999/posts', { token: admin.token }), 404)
+  test('id pengguna bukan angka 400; tidak ada → daftar kosong (bukan error)', async () => {
+    expectFail(await api('GET', '/api/admin/users/bukan-angka/posts', { token: admin.token }), 400)
+    assert.deepEqual(expectOk(await api('GET', '/api/admin/users/999999999/posts', { token: admin.token })), [])
   })
 })

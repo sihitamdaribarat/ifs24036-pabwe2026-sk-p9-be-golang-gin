@@ -15,7 +15,7 @@ import (
 const SearchLimit = 5
 
 // ErrEmptyTopic dikembalikan jika topik hanya berisi spasi.
-var ErrEmptyTopic = errors.New("topik artikel wajib diisi")
+var ErrEmptyTopic = errors.New("topic wajib diisi (topik artikel)")
 
 // Searcher adalah kontrak penelusuran mesin pencari.
 type Searcher interface {

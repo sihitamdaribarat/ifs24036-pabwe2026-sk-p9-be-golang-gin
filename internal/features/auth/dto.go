@@ -26,12 +26,11 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// RegisterRequest adalah payload pendaftaran penulis baru. Name dan email opsional:
-// name bawaan = username, email bawaan = <username>@delcom.org.
+// RegisterRequest adalah payload pendaftaran penulis baru. Name opsional (bawaan = username).
 type RegisterRequest struct {
 	Name     string `json:"name" binding:"max=100" example:"Budi Santoso"`
 	Username string `json:"username" binding:"required,min=3,max=50" example:"budi"`
-	Email    string `json:"email" binding:"omitempty,email,max=150" example:"budi@example.com"`
+	Email    string `json:"email" binding:"required,email,max=150" example:"budi@example.com"`
 	Password string `json:"password" binding:"required,min=6,max=72" example:"rahasia123"`
 }
 

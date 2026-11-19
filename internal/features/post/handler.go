@@ -23,9 +23,11 @@ func NewHandler(service *Service) *Handler {
 
 func respondError(c *gin.Context, err error) {
 	switch {
-	case errors.Is(err, ErrPostNotFound), errors.Is(err, ErrUserNotFound):
+	case errors.Is(err, ErrPostNotFound):
 		response.Fail(c, http.StatusNotFound, err.Error())
-	case errors.Is(err, ErrInvalidCategory):
+	case errors.Is(err, ErrForbidden):
+		response.Fail(c, http.StatusForbidden, err.Error())
+	case errors.Is(err, ErrInvalidCategory), errors.Is(err, ErrEmptyField):
 		response.Fail(c, http.StatusBadRequest, err.Error())
 	default:
 		response.InternalError(c, err)
@@ -163,6 +165,7 @@ func (h *Handler) Stats(c *gin.Context) {
 // @Security     BearerAuth
 // @Param        id   path      int  true  "ID artikel"
 // @Success      200  {object}  response.Body{data=PostResponse}
+// @Failure      403  {object}  response.Body
 // @Failure      404  {object}  response.Body
 // @Router       /api/posts/{id} [get]
 func (h *Handler) GetMine(c *gin.Context) {
@@ -184,10 +187,11 @@ func (h *Handler) GetMine(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        id    path      int          true  "ID artikel"
-// @Param        body  body      PostRequest  true  "Data artikel"
+// @Param        id    path      int                true  "ID artikel"
+// @Param        body  body      UpdatePostRequest  true  "Field artikel yang diperbarui (opsional)"
 // @Success      200   {object}  response.Body{data=PostResponse}
 // @Failure      400   {object}  response.Body
+// @Failure      403   {object}  response.Body
 // @Failure      404   {object}  response.Body
 // @Router       /api/posts/{id} [put]
 func (h *Handler) Update(c *gin.Context) {
@@ -195,8 +199,9 @@ func (h *Handler) Update(c *gin.Context) {
 	if !ok {
 		return
 	}
-	req, ok := bindPost(c)
-	if !ok {
+	var req UpdatePostRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, http.StatusBadRequest, "Data artikel tidak valid: "+err.Error())
 		return
 	}
 	p, err := h.service.Update(middleware.UserID(c), id, req)
@@ -214,6 +219,7 @@ func (h *Handler) Update(c *gin.Context) {
 // @Security     BearerAuth
 // @Param        id   path      int  true  "ID artikel"
 // @Success      200  {object}  response.Body{data=PostResponse}
+// @Failure      403  {object}  response.Body
 // @Failure      404  {object}  response.Body
 // @Router       /api/posts/{id}/toggle-publish [patch]
 func (h *Handler) TogglePublish(c *gin.Context) {
@@ -240,6 +246,7 @@ func (h *Handler) TogglePublish(c *gin.Context) {
 // @Security     BearerAuth
 // @Param        id   path      int  true  "ID artikel"
 // @Success      200  {object}  response.Body
+// @Failure      403  {object}  response.Body
 // @Failure      404  {object}  response.Body
 // @Router       /api/posts/{id} [delete]
 func (h *Handler) Delete(c *gin.Context) {
@@ -297,7 +304,7 @@ func (h *Handler) AdminPosts(c *gin.Context) {
 // @Security     BearerAuth
 // @Param        id   path      int  true  "ID pengguna"
 // @Success      200  {object}  response.Body{data=[]PostResponse}
-// @Failure      404  {object}  response.Body
+// @Failure      400  {object}  response.Body
 // @Router       /api/admin/users/{id}/posts [get]
 func (h *Handler) AdminUserPosts(c *gin.Context) {
 	id, ok := paramID(c)

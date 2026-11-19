@@ -41,6 +41,17 @@ type PostRequest struct {
 	IsPublished    bool   `json:"is_published" example:"false"`
 }
 
+// UpdatePostRequest adalah payload pembaruan artikel. Seluruh field opsional;
+// hanya field yang dikirim yang diperbarui.
+type UpdatePostRequest struct {
+	Title          *string `json:"title" binding:"omitempty,max=255" example:"Belajar Golang Gin"`
+	Category       *string `json:"category" binding:"omitempty,max=100" example:"Teknologi"`
+	Excerpt        *string `json:"excerpt" example:"Ringkasan singkat artikel."`
+	Content        *string `json:"content" example:"## Judul\n\nIsi artikel dalam Markdown."`
+	CoverImagePath *string `json:"cover_image_path" example:"https://picsum.photos/1200/600"`
+	IsPublished    *bool   `json:"is_published" example:"false"`
+}
+
 // Filter adalah parameter pencarian artikel.
 type Filter struct {
 	Q        string `form:"q"`
@@ -55,10 +66,11 @@ type AuthorInfo struct {
 	Bio      string `json:"bio"`
 }
 
-// PostResponse adalah representasi JSON artikel.
+// PostResponse adalah representasi JSON artikel. user_id tidak ditampilkan pada
+// endpoint publik (data internal); identitas penulis tersedia di field author.
 type PostResponse struct {
 	ID             uint        `json:"id"`
-	UserID         uint        `json:"user_id"`
+	UserID         uint        `json:"user_id,omitempty"`
 	Title          string      `json:"title"`
 	Slug           string      `json:"slug"`
 	Category       string      `json:"category"`
@@ -73,11 +85,12 @@ type PostResponse struct {
 	UpdatedAt      time.Time   `json:"updated_at"`
 }
 
-// Stats adalah ringkasan 3 kartu statistik penulis.
+// Stats adalah ringkasan 3 kartu statistik penulis (Total Artikel, Total Selesai/Terbit,
+// Belum Selesai/Draf).
 type Stats struct {
-	Total     int64 `json:"total"`
-	Published int64 `json:"published"`
-	Draft     int64 `json:"draft"`
+	TotalArticles int64 `json:"total_articles"`
+	TotalSelesai  int64 `json:"total_selesai"`
+	BelumSelesai  int64 `json:"belum_selesai"`
 }
 
 // UserSummary adalah ringkasan pengguna untuk monitoring admin.

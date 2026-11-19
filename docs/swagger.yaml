@@ -92,6 +92,7 @@ definitions:
         minLength: 3
         type: string
     required:
+    - email
     - password
     - username
     type: object
@@ -207,12 +208,38 @@ definitions:
     type: object
   post.Stats:
     properties:
-      draft:
+      belum_selesai:
         type: integer
-      published:
+      total_articles:
         type: integer
-      total:
+      total_selesai:
         type: integer
+    type: object
+  post.UpdatePostRequest:
+    properties:
+      category:
+        example: Teknologi
+        maxLength: 100
+        type: string
+      content:
+        example: |-
+          ## Judul
+
+          Isi artikel dalam Markdown.
+        type: string
+      cover_image_path:
+        example: https://picsum.photos/1200/600
+        type: string
+      excerpt:
+        example: Ringkasan singkat artikel.
+        type: string
+      is_published:
+        example: false
+        type: boolean
+      title:
+        example: Belajar Golang Gin
+        maxLength: 255
+        type: string
     type: object
   post.UserSummary:
     properties:
@@ -331,8 +358,8 @@ paths:
                     $ref: '#/definitions/post.PostResponse'
                   type: array
               type: object
-        "404":
-          description: Not Found
+        "400":
+          description: Bad Request
           schema:
             $ref: '#/definitions/response.Body'
       security:
@@ -441,10 +468,6 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/response.Body'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/response.Body'
       security:
       - BearerAuth: []
       summary: Perbarui profil penulis yang sedang login
@@ -471,14 +494,10 @@ paths:
             - $ref: '#/definitions/response.Body'
             - properties:
                 data:
-                  $ref: '#/definitions/auth.User'
+                  $ref: '#/definitions/auth.LoginResponse'
               type: object
         "400":
           description: Bad Request
-          schema:
-            $ref: '#/definitions/response.Body'
-        "409":
-          description: Conflict
           schema:
             $ref: '#/definitions/response.Body'
       summary: Registrasi penulis baru
@@ -560,6 +579,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/response.Body'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Body'
         "404":
           description: Not Found
           schema:
@@ -588,6 +611,10 @@ paths:
                 data:
                   $ref: '#/definitions/post.PostResponse'
               type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Body'
         "404":
           description: Not Found
           schema:
@@ -606,12 +633,12 @@ paths:
         name: id
         required: true
         type: integer
-      - description: Data artikel
+      - description: Field artikel yang diperbarui (opsional)
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/post.PostRequest'
+          $ref: '#/definitions/post.UpdatePostRequest'
       produces:
       - application/json
       responses:
@@ -626,6 +653,10 @@ paths:
               type: object
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/response.Body'
         "404":
@@ -657,6 +688,10 @@ paths:
                 data:
                   $ref: '#/definitions/post.PostResponse'
               type: object
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.Body'
         "404":
           description: Not Found
           schema:
