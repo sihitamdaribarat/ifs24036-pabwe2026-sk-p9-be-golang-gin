@@ -1,11 +1,8 @@
 package ai
 
 import (
-	"errors"
-	"log"
 	"net/http"
 
-	"app/internal/features/post"
 	"app/internal/response"
 
 	"github.com/gin-gonic/gin"
@@ -23,7 +20,7 @@ func NewHandler(service *Service) *Handler {
 
 // Generate godoc
 // @Summary      Generate draf artikel dengan AI + Search Engine
-// @Description  Menelusuri topik ke Search Engine (opsional), lalu mengirim prompt + konteks ke OpenAI Chat Completions untuk menghasilkan judul, kategori, excerpt, konten Markdown dan daftar sumber rujukan.
+// @Description  Menelusuri topik ke Search Engine (opsional), lalu mengirim prompt + konteks ke OpenAI Chat Completions untuk menghasilkan judul, kategori, excerpt, konten Markdown dan daftar sumber rujukan. Jika OpenAI belum dikonfigurasi atau gagal, draf disusun oleh penulis lokal (generated_by = "local").
 // @Tags         Posts
 // @Accept       json
 // @Produce      json
@@ -31,8 +28,7 @@ func NewHandler(service *Service) *Handler {
 // @Param        body  body      GenerateRequest  true  "Topik artikel"
 // @Success      200   {object}  response.Body{data=GeneratedArticle}
 // @Failure      400   {object}  response.Body
-// @Failure      502   {object}  response.Body
-// @Failure      503   {object}  response.Body
+// @Failure      401   {object}  response.Body
 // @Router       /api/posts/ai-generate [post]
 func (h *Handler) Generate(c *gin.Context) {
 	var req GenerateRequest
@@ -41,16 +37,12 @@ func (h *Handler) Generate(c *gin.Context) {
 		return
 	}
 
+	// Kegagalan layanan AI sudah ditangani penulis lokal, sehingga error yang tersisa
+	// hanya berasal dari input (topik kosong / kategori tidak valid).
 	article, err := h.service.Generate(c.Request.Context(), req)
-	switch {
-	case err == nil:
-		response.Success(c, http.StatusOK, "Draf artikel AI berhasil dibuat", article)
-	case errors.Is(err, post.ErrInvalidCategory):
+	if err != nil {
 		response.Fail(c, http.StatusBadRequest, err.Error())
-	case errors.Is(err, ErrNotConfigured):
-		response.Error(c, http.StatusServiceUnavailable, err.Error())
-	default:
-		log.Printf("[ERROR] %s %s: %v", c.Request.Method, c.Request.URL.Path, err)
-		response.Error(c, http.StatusBadGateway, err.Error())
+		return
 	}
+	response.Success(c, http.StatusOK, "Draf artikel AI berhasil dibuat", article)
 }

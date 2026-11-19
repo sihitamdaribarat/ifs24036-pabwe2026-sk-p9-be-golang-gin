@@ -1,0 +1,9 @@
+{
+  "name": "delcom-blog-api-tests",
+  "private": true,
+  "type": "module",
+  "description": "Uji API black-box Delcom Blog (tanpa dependensi, memakai node:test & fetch bawaan Node 18+)",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 --test-reporter=spec"
+  }
+}

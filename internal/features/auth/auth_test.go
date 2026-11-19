@@ -102,6 +102,15 @@ func TestRegister(t *testing.T) {
 	assert.Equal(t, http.StatusConflict, register(r, "andi", "budi@example.com").Code)
 	assert.Equal(t, http.StatusBadRequest, call(r, http.MethodPost, "/api/auth/register", "", "{bad").Code)
 	assert.Equal(t, http.StatusBadRequest, register(r, "x", "invalid-email").Code)
+	assert.Equal(t, http.StatusBadRequest, register(r, "budi santoso", "bs@example.com").Code)
+
+	// Username dengan _ . - diizinkan; name & email opsional.
+	res = call(r, http.MethodPost, "/api/auth/register", "", map[string]string{"username": "Test_User-1.a", "password": "secret123"})
+	assert.Equal(t, http.StatusCreated, res.Code)
+	data = res.Body["data"].(map[string]any)
+	assert.Equal(t, "test_user-1.a", data["username"])
+	assert.Equal(t, "test_user-1.a", data["name"])
+	assert.Equal(t, "test_user-1.a@delcom.org", data["email"])
 }
 
 func TestLogin(t *testing.T) {
@@ -120,6 +129,13 @@ func TestLogin(t *testing.T) {
 
 	res = call(r, http.MethodPost, "/api/auth/login", "", map[string]string{"username": "budi"})
 	assert.Equal(t, http.StatusBadRequest, res.Code)
+
+	res = call(r, http.MethodPost, "/api/auth/login", "", map[string]string{"password": "secret123"})
+	assert.Equal(t, http.StatusBadRequest, res.Code)
+
+	// Login juga bisa lewat field email.
+	res = call(r, http.MethodPost, "/api/auth/login", "", map[string]string{"email": "budi@example.com", "password": "secret123"})
+	assert.Equal(t, http.StatusOK, res.Code)
 }
 
 func TestProfileAndLogout(t *testing.T) {
@@ -133,12 +149,21 @@ func TestProfileAndLogout(t *testing.T) {
 	assert.Equal(t, http.StatusOK, res.Code)
 	assert.Equal(t, "budi", res.Body["data"].(map[string]any)["username"])
 
+	bio := "Penulis"
 	res = call(r, http.MethodPut, "/api/auth/profile", token, UpdateProfileRequest{
-		Name: "Budi Baru", Email: "budi.baru@example.com", Bio: "Penulis", Password: "newpass123",
+		Name: "Budi Baru", Email: "budi.baru@example.com", Bio: &bio, Password: "newpass123",
 	})
 	assert.Equal(t, http.StatusOK, res.Code)
 	assert.Equal(t, "Budi Baru", res.Body["data"].(map[string]any)["name"])
 	assert.NotEmpty(t, login(t, r, "budi", "newpass123"))
+
+	// Update parsial: hanya bio yang dikirim, field lain tetap.
+	res = call(r, http.MethodPut, "/api/auth/profile", token, map[string]string{"bio": "Bio baru"})
+	assert.Equal(t, http.StatusOK, res.Code)
+	data := res.Body["data"].(map[string]any)
+	assert.Equal(t, "Bio baru", data["bio"])
+	assert.Equal(t, "Budi Baru", data["name"])
+	assert.Equal(t, "budi.baru@example.com", data["email"])
 
 	// Update tanpa password tetap mempertahankan password lama.
 	res = call(r, http.MethodPut, "/api/auth/profile", token, UpdateProfileRequest{Name: "Budi", Email: "budi.baru@example.com"})
@@ -261,6 +286,7 @@ func TestServiceErrors(t *testing.T) {
 }
 
 func TestStatusFor(t *testing.T) {
+	assert.Equal(t, http.StatusBadRequest, statusFor(ErrInvalidUsername))
 	assert.Equal(t, http.StatusConflict, statusFor(ErrUsernameTaken))
 	assert.Equal(t, http.StatusConflict, statusFor(ErrEmailTaken))
 	assert.Equal(t, http.StatusUnauthorized, statusFor(ErrInvalidCredentials))

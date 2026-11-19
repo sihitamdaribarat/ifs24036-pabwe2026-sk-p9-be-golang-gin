@@ -533,7 +533,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Menelusuri topik ke Search Engine (opsional), lalu mengirim prompt + konteks ke OpenAI Chat Completions untuk menghasilkan judul, kategori, excerpt, konten Markdown dan daftar sumber rujukan.",
+                "description": "Menelusuri topik ke Search Engine (opsional), lalu mengirim prompt + konteks ke OpenAI Chat Completions untuk menghasilkan judul, kategori, excerpt, konten Markdown dan daftar sumber rujukan. Jika OpenAI belum dikonfigurasi atau gagal, draf disusun oleh penulis lokal (generated_by = \"local\").",
                 "consumes": [
                     "application/json"
                 ],
@@ -580,14 +580,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.Body"
                         }
                     },
-                    "502": {
-                        "description": "Bad Gateway",
-                        "schema": {
-                            "$ref": "#/definitions/response.Body"
-                        }
-                    },
-                    "503": {
-                        "description": "Service Unavailable",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/response.Body"
                         }
@@ -1005,6 +999,10 @@ const docTemplate = `{
                 "excerpt": {
                     "type": "string"
                 },
+                "generated_by": {
+                    "type": "string",
+                    "example": "openai"
+                },
                 "search_warning": {
                     "type": "string"
                 },
@@ -1039,10 +1037,13 @@ const docTemplate = `{
         "auth.LoginRequest": {
             "type": "object",
             "required": [
-                "password",
-                "username"
+                "password"
             ],
             "properties": {
+                "email": {
+                    "type": "string",
+                    "example": ""
+                },
                 "password": {
                     "type": "string",
                     "example": "admin"
@@ -1067,8 +1068,6 @@ const docTemplate = `{
         "auth.RegisterRequest": {
             "type": "object",
             "required": [
-                "email",
-                "name",
                 "password",
                 "username"
             ],
@@ -1099,10 +1098,6 @@ const docTemplate = `{
         },
         "auth.UpdateProfileRequest": {
             "type": "object",
-            "required": [
-                "email",
-                "name"
-            ],
             "properties": {
                 "bio": {
                     "type": "string",

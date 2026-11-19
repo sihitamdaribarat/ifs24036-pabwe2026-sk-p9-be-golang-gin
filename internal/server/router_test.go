@@ -189,9 +189,10 @@ func TestMultiTierAccess(t *testing.T) {
 	assert.Equal(t, http.StatusOK, code)
 	assert.Len(t, body["data"], 2)
 
-	// AI generator: OPENAI_KEY belum diatur → 503.
+	// AI generator: OPENAI_KEY belum diatur & search engine tidak terjangkau → draf penulis lokal.
 	code, body = call(r, http.MethodPost, "/api/posts/ai-generate", member, map[string]any{"topic": "AI", "include_web_search": true})
-	assert.Equal(t, http.StatusServiceUnavailable, code, body)
+	assert.Equal(t, http.StatusOK, code, body)
+	assert.Equal(t, "local", body["data"].(map[string]any)["generated_by"])
 
 	code, _ = call(r, http.MethodPost, "/api/auth/logout", member, nil)
 	assert.Equal(t, http.StatusOK, code)

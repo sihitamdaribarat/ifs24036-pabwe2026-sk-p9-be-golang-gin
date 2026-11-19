@@ -277,14 +277,47 @@ func TestGenerateErrors(t *testing.T) {
 	_, err := NewService(&fakeSearcher{}, &fakeCompleter{}).Generate(ctx, GenerateRequest{Topic: "x", Category: "Olahraga"})
 	assert.ErrorIs(t, err, post.ErrInvalidCategory)
 
-	_, err = NewService(&fakeSearcher{}, &fakeCompleter{err: ErrNotConfigured}).Generate(ctx, GenerateRequest{Topic: "x"})
-	assert.ErrorIs(t, err, ErrNotConfigured)
+	_, err = NewService(&fakeSearcher{}, &fakeCompleter{}).Generate(ctx, GenerateRequest{Topic: "   "})
+	assert.ErrorIs(t, err, ErrEmptyTopic)
+}
 
-	_, err = NewService(&fakeSearcher{}, &fakeCompleter{err: errFake}).Generate(ctx, GenerateRequest{Topic: "x"})
-	assert.ErrorIs(t, err, ErrGenerationFailed)
+func TestGenerateFallsBackToLocalWriter(t *testing.T) {
+	ctx := context.Background()
+	for _, completer := range []*fakeCompleter{{err: ErrNotConfigured}, {err: errFake}, {out: "bukan json"}} {
+		a, err := NewService(&fakeSearcher{}, completer).Generate(ctx, GenerateRequest{Topic: "belajar golang", Category: "Teknologi"})
+		require.NoError(t, err)
+		assert.Equal(t, GeneratorLocal, a.GeneratedBy)
+		assert.Equal(t, "Belajar golang", a.Title)
+		assert.Equal(t, "Teknologi", a.Category)
+		assert.NotEmpty(t, a.Excerpt)
+		assert.Contains(t, a.Content, "## Pendahuluan")
+	}
 
-	_, err = NewService(&fakeSearcher{}, &fakeCompleter{out: "bukan json"}).Generate(ctx, GenerateRequest{Topic: "x"})
-	assert.ErrorIs(t, err, ErrGenerationFailed)
+	searcher := &fakeSearcher{results: []SearchResult{{Title: "Sumber", URL: "https://sumber.com", Snippet: "fakta"}}}
+	a, err := NewService(searcher, &fakeCompleter{err: ErrNotConfigured}).Generate(ctx, GenerateRequest{Topic: "AI", IncludeWebSearch: true})
+	require.NoError(t, err)
+	assert.Contains(t, a.Content, "fakta [1]")
+	assert.Contains(t, a.Content, "## Sumber Rujukan")
+	assert.True(t, a.WebSearchUsed)
+
+	a, err = NewService(&fakeSearcher{}, &fakeCompleter{out: articleJSON}).Generate(ctx, GenerateRequest{Topic: "AI"})
+	require.NoError(t, err)
+	assert.Equal(t, GeneratorOpenAI, a.GeneratedBy)
+}
+
+func TestBuildLocalArticle(t *testing.T) {
+	a := BuildLocalArticle("tren ai", "Umum", "santai", nil)
+	assert.Equal(t, "Tren ai", a.Title)
+	assert.Contains(t, a.Content, "gaya bahasa santai")
+	assert.Contains(t, a.Content, "**Konsep dasar**")
+
+	a = BuildLocalArticle("x", "Umum", "", []SearchResult{{Title: "Tanpa Snippet", URL: "https://a.com"}})
+	assert.Contains(t, a.Content, "**Tanpa Snippet**: Lihat sumber")
+	assert.NotContains(t, a.Content, "gaya bahasa")
+
+	long := LocalTitle(strings.Repeat("a", 300))
+	assert.Equal(t, MaxTitleLength, len([]rune(long)))
+	assert.True(t, strings.HasPrefix(long, "A"))
 }
 
 // ---------- Handler ----------
@@ -318,10 +351,12 @@ func TestHandlerGenerate(t *testing.T) {
 	code, _ = callGenerate(ok, `{"topic":"AI","category":"Olahraga"}`)
 	assert.Equal(t, http.StatusBadRequest, code)
 
-	code, _ = callGenerate(NewService(&fakeSearcher{}, &fakeCompleter{err: ErrNotConfigured}), `{"topic":"AI"}`)
-	assert.Equal(t, http.StatusServiceUnavailable, code)
+	code, body = callGenerate(ok, `{"topic":"   "}`)
+	assert.Equal(t, http.StatusBadRequest, code)
+	assert.Equal(t, "fail", body["status"])
 
-	code, body = callGenerate(NewService(&fakeSearcher{}, &fakeCompleter{err: errFake}), `{"topic":"AI"}`)
-	assert.Equal(t, http.StatusBadGateway, code)
-	assert.Equal(t, "error", body["status"])
+	// OpenAI belum dikonfigurasi → tetap 200 dengan draf dari penulis lokal.
+	code, body = callGenerate(NewService(&fakeSearcher{}, &fakeCompleter{err: ErrNotConfigured}), `{"topic":"AI"}`)
+	assert.Equal(t, http.StatusOK, code)
+	assert.Equal(t, GeneratorLocal, body["data"].(map[string]any)["generated_by"])
 }

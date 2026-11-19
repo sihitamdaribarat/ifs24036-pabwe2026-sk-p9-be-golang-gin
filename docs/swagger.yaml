@@ -27,6 +27,9 @@ definitions:
         type: string
       excerpt:
         type: string
+      generated_by:
+        example: openai
+        type: string
       search_warning:
         type: string
       sources:
@@ -49,6 +52,9 @@ definitions:
     type: object
   auth.LoginRequest:
     properties:
+      email:
+        example: ""
+        type: string
       password:
         example: admin
         type: string
@@ -57,7 +63,6 @@ definitions:
         type: string
     required:
     - password
-    - username
     type: object
   auth.LoginResponse:
     properties:
@@ -87,8 +92,6 @@ definitions:
         minLength: 3
         type: string
     required:
-    - email
-    - name
     - password
     - username
     type: object
@@ -111,9 +114,6 @@ definitions:
         maxLength: 72
         minLength: 6
         type: string
-    required:
-    - email
-    - name
     type: object
   auth.User:
     properties:
@@ -672,7 +672,8 @@ paths:
       - application/json
       description: Menelusuri topik ke Search Engine (opsional), lalu mengirim prompt
         + konteks ke OpenAI Chat Completions untuk menghasilkan judul, kategori, excerpt,
-        konten Markdown dan daftar sumber rujukan.
+        konten Markdown dan daftar sumber rujukan. Jika OpenAI belum dikonfigurasi
+        atau gagal, draf disusun oleh penulis lokal (generated_by = "local").
       parameters:
       - description: Topik artikel
         in: body
@@ -696,12 +697,8 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/response.Body'
-        "502":
-          description: Bad Gateway
-          schema:
-            $ref: '#/definitions/response.Body'
-        "503":
-          description: Service Unavailable
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/response.Body'
       security:

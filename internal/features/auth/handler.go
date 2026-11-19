@@ -23,6 +23,8 @@ func NewHandler(service *Service) *Handler {
 // statusFor memetakan error domain ke HTTP status code.
 func statusFor(err error) int {
 	switch {
+	case errors.Is(err, ErrInvalidUsername):
+		return http.StatusBadRequest
 	case errors.Is(err, ErrUsernameTaken), errors.Is(err, ErrEmailTaken):
 		return http.StatusConflict
 	case errors.Is(err, ErrInvalidCredentials):
@@ -80,7 +82,7 @@ func (h *Handler) Register(c *gin.Context) {
 // @Router       /api/auth/login [post]
 func (h *Handler) Login(c *gin.Context) {
 	var req LoginRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil || req.Identifier() == "" {
 		response.Fail(c, http.StatusBadRequest, "Username dan password wajib diisi")
 		return
 	}

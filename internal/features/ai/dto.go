@@ -26,4 +26,5 @@ type GeneratedArticle struct {
 	Sources       []SearchResult `json:"sources"`
 	WebSearchUsed bool           `json:"web_search_used"`
 	SearchWarning string         `json:"search_warning,omitempty"`
+	GeneratedBy   string         `json:"generated_by" example:"openai"`
 }

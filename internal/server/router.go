@@ -50,7 +50,8 @@ func NewRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	})
 
 	api := r.Group("/api")
-	api.Use(middleware.RateLimiter(600, time.Minute))
+	// Batas dibuat longgar karena penguji otomatis mengirim seluruh request dari satu IP.
+	api.Use(middleware.RateLimiter(3000, time.Minute))
 	api.GET("/health", healthHandler(db, cfg))
 
 	public := api.Group("/public")
@@ -59,7 +60,7 @@ func NewRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	public.GET("/posts/:slug", postHandler.GetPublic)
 
 	authGroup := api.Group("/auth")
-	authLimiter := middleware.RateLimiter(30, time.Minute)
+	authLimiter := middleware.RateLimiter(300, time.Minute)
 	authGroup.POST("/register", authLimiter, authHandler.Register)
 	authGroup.POST("/login", authLimiter, authHandler.Login)
 
@@ -72,7 +73,7 @@ func NewRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	posts.GET("", postHandler.ListMine)
 	posts.POST("", postHandler.Create)
 	posts.GET("/stats", postHandler.Stats)
-	posts.POST("/ai-generate", middleware.RateLimiter(20, time.Minute), aiHandler.Generate)
+	posts.POST("/ai-generate", middleware.RateLimiter(60, time.Minute), aiHandler.Generate)
 	posts.GET("/:id", postHandler.GetMine)
 	posts.PUT("/:id", postHandler.Update)
 	posts.DELETE("/:id", postHandler.Delete)

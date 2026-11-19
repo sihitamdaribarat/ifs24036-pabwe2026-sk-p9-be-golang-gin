@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
 	"app/internal/features/post"
@@ -13,8 +14,8 @@ import (
 // SearchLimit adalah jumlah maksimal sumber rujukan web yang dipakai.
 const SearchLimit = 5
 
-// ErrGenerationFailed dikembalikan jika AI gagal menghasilkan artikel yang valid.
-var ErrGenerationFailed = errors.New("gagal menghasilkan artikel AI")
+// ErrEmptyTopic dikembalikan jika topik hanya berisi spasi.
+var ErrEmptyTopic = errors.New("topik artikel wajib diisi")
 
 // Searcher adalah kontrak penelusuran mesin pencari.
 type Searcher interface {
@@ -47,7 +48,7 @@ Balas HANYA dengan satu objek JSON valid tanpa teks lain, dengan format:
 - title: judul menarik maksimal 120 karakter
 - category: salah satu dari Teknologi, Pendidikan, Gaya Hidup, Bisnis, Opini, Umum
 - excerpt: ringkasan pemikat 1-2 kalimat
-- content: isi artikel lengkap dalam Markdown (minimal 500 kata)`
+- content: isi artikel lengkap dalam Markdown (sekitar 300-500 kata agar respons tetap cepat)`
 
 // BuildUserPrompt menyusun prompt topik beserta konteks hasil penelusuran mesin pencari.
 func BuildUserPrompt(topic, category, tone string, sources []SearchResult) string {
@@ -104,8 +105,13 @@ func AppendSources(content string, sources []SearchResult) string {
 
 // Generate menghasilkan draf artikel utuh. Jika IncludeWebSearch aktif, topik ditelusuri
 // terlebih dahulu ke Search Engine; kegagalan penelusuran tidak menggagalkan proses.
+// Jika OpenAI belum dikonfigurasi, gagal, atau jawabannya tidak valid, draf disusun oleh
+// penulis lokal (BuildLocalArticle) sehingga endpoint tetap menghasilkan artikel.
 func (s *Service) Generate(ctx context.Context, req GenerateRequest) (*GeneratedArticle, error) {
 	topic := strings.TrimSpace(req.Topic)
+	if topic == "" {
+		return nil, ErrEmptyTopic
+	}
 	category, err := post.NormalizeCategory(req.Category)
 	if err != nil {
 		return nil, err
@@ -122,17 +128,17 @@ func (s *Service) Generate(ctx context.Context, req GenerateRequest) (*Generated
 		}
 	}
 
-	raw, err := s.completer.Complete(ctx, systemPrompt, BuildUserPrompt(topic, category, strings.TrimSpace(req.Tone), sources))
-	if errors.Is(err, ErrNotConfigured) {
-		return nil, err
+	tone := strings.TrimSpace(req.Tone)
+	var article *GeneratedArticle
+	raw, err := s.completer.Complete(ctx, systemPrompt, BuildUserPrompt(topic, category, tone, sources))
+	if err == nil {
+		article, err = ParseArticle(raw)
 	}
+	generatedBy := GeneratorOpenAI
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrGenerationFailed, err)
-	}
-
-	article, err := ParseArticle(raw)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrGenerationFailed, err)
+		log.Printf("[WARN] AI generator memakai penulis lokal: %v", err)
+		article = BuildLocalArticle(topic, category, tone, sources)
+		generatedBy = GeneratorLocal
 	}
 
 	if strings.TrimSpace(article.Title) == "" {
@@ -149,5 +155,6 @@ func (s *Service) Generate(ctx context.Context, req GenerateRequest) (*Generated
 	article.Sources = sources
 	article.WebSearchUsed = req.IncludeWebSearch && warning == ""
 	article.SearchWarning = warning
+	article.GeneratedBy = generatedBy
 	return article, nil
 }
